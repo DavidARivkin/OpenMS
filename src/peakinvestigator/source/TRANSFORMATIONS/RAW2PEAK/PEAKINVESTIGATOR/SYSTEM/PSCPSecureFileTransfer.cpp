@@ -46,8 +46,8 @@ namespace OpenMS
     process_.setProcessChannelMode(QProcess::ForwardedChannels);
   }
 
-  PSCPSecureFileTransfer::PSCPSecureFileTransfer(String hostname, String username, String password)
-    : AbstractSecureFileTransfer(hostname, username, password)
+  PSCPSecureFileTransfer::PSCPSecureFileTransfer(String hostname, String portnumber, String username, String password)
+    : AbstractSecureFileTransfer(hostname, portnumber, username, password)
   {
     process_.setProcessChannelMode(QProcess::ForwardedChannels);
   }

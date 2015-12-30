@@ -57,13 +57,16 @@ namespace OpenMS
       AbstractSecureFileTransfer();
 
       /// Constructor that sets hostname, username, and password
-      AbstractSecureFileTransfer(String hostname, String username, String password);
+      AbstractSecureFileTransfer(String hostname, String portnumber, String username, String password);
 
       /// Destructor
       virtual ~AbstractSecureFileTransfer();
 
       String getHostname() { return hostname_; }
       void setHostname(String hostname) { hostname_ = hostname; }
+
+      String getPortnumber() { return portnumber_; }
+      void setPortnumber(String portnumber) { portnumber_ = portnumber; }
 
       String getUsername() { return username_; }
       void setUsername(String username) { username_ = username; }
@@ -88,6 +91,7 @@ namespace OpenMS
 
     protected:
       String hostname_; ///< @brief SFTP server hostname
+      String portnumber_; ///< @brief SFTP server port number
       String username_; ///< @brief SFTP username
       String password_; ///< @brief SFTP password
   };

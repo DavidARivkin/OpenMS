@@ -29,12 +29,14 @@
 #
 # --------------------------------------------------------------------------
 # $Maintainer: Adam Tenderholt $
-# $Authors: Adam Tenderholt $
+# $Authors: Adam Tenderholt David Rivkin $
 # --------------------------------------------------------------------------
 
 ### the directory names
 set(directory source/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR)
 set(header_directory include/OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR)
+set(dlg_directory source/VISUAL/PEAKINVESTIGATOR)
+set(dlg_header_directory include/OpenMS/VISUAL/PEAKINVESTIGATOR)
 
 ### list all files of the source directory here
 set(sources_format_list
@@ -62,6 +64,7 @@ set(sources_system)
 foreach(i ${sources_system_list})
 	list(APPEND sources_system ${directory}/${i})
 endforeach(i)
+
 ### end add path
 
 ### Setup format internal source
@@ -70,6 +73,7 @@ set(sources_format_internal ${directory}/FORMAT/INTERNAL/tarball.cpp)
 # header needs to be defined here, because it needs to be MOC'd
 set(peakinvestigator_header ${header_directory}/PeakInvestigator.h)
 set(peakinvestigator_source ${directory}/PeakInvestigator.cpp)
+set(peakinvestigator_dlg ${dlg_directory}/PeakInvestigatorInitDialog.cpp)
 
 qt4_wrap_cpp(mocced_sources ${peakinvestigator_header} OPTIONS ${BOOST_MOC_ARGS})
 
@@ -79,12 +83,14 @@ list(APPEND PeakInvestigatorFiles ${mocced_sources})
 list(APPEND PeakInvestigatorFiles ${sources_format})
 list(APPEND PeakInvestigatorFiles ${sources_format_internal})
 list(APPEND PeakInvestigatorFiles ${sources_system})
+list(APPEND PeakInvestigatorFiles ${sources_dlg})
 
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${peakinvestigator_source})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${mocced_sources})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT" FILES ${sources_format})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\\INTERNAL" FILES ${sources_format_internal})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${sources_system})
+source_group("Source Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${peakinvestigator_dlg})
 
 ## add groups for headers
 set(header_format_list
@@ -115,17 +121,20 @@ endforeach(i)
 
 ### Setup format internal header
 set(header_format_internal ${header_directory}/FORMAT/INTERNAL/tarball.h)
+set(header_dlg ${dlg_header_directory}/PeakInvestigatorInitDialog.h)
 
 list(APPEND PeakInvestigatorFiles ${peakinvestigator_header})
 list(APPEND PeakInvestigatorFiles ${header_format})
 list(APPEND PeakInvestigatorFiles ${header_format_internal})
 list(APPEND PeakInvestigatorFiles ${header_system})
+list(APPEND PeakInvestigatorFiles ${header_dlg})
 
 # define list of headers related to peakinvestigator needed for
 # installation and export
-set(PeakInvestigatorHeaders ${peakinvestigator_header} ${header_format} ${header_format_internal} ${header_system})
+set(PeakInvestigatorHeaders ${peakinvestigator_header} ${header_format} ${header_format_internal} ${header_system} ${header_dlg})
 
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${peakinvestigator_header})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT" FILES ${header_format})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\\INTERNAL" FILES ${header_format_internal})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${header_system})
+source_group("Header Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${header_dlg})

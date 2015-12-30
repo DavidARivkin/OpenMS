@@ -46,6 +46,9 @@
 
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtCore/QUrl>
+#include <QStringList>
+#include <QVector>
+#include <QVariantMap>
 
 #if defined(Q_OS_MAC) || defined(Q_OS_LINUX)
   #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/SYSTEM/LibSSH2SecureFileTransfer.h>
@@ -253,7 +256,7 @@ protected:
     QString job_; ///< @brief Job number obtained from public API during INIT request.
     QString funds_; ///< @brief Funds obtained from public API during INIT request.
     QStringList PI_versions_; ///< @brief List of PI versions available obtained from public API during INIT request.
-    QArray<QVariantMap> RTOs_; ///< @brief List of RTOs available obtained from public API during INIT request. (one must be selected)
+    QVector<QVariantMap> RTOs_; ///< @brief List of RTOs available obtained from public API during INIT request. (one must be selected)
     QString PIVersion_; ///< @brief PI version selected by the user.
     QString RTO_; ///< @brief RTO selected by the user.
     QString sftp_username_; ///< @brief Username for Veritomyx SFTP server, obtained from public API.
@@ -290,7 +293,6 @@ protected:
     PIMode mode_;
     PIStatus status_;
     int prep_scan_count;
-    QString prep_ms_type;
 
   }; // end PeakInvestigator
 

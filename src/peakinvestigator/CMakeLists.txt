@@ -62,6 +62,11 @@ if(UNIX AND NOT CYGWIN)
 endif()
 #------------------------------------------------------------------------------
 
+#------------------------------------------------------------------------------
+# Find QJSON
+#------------------------------------------------------------------------------
+find_package(QJSON REQUIRED)
+
 # get information regarding the openswath files
 include(source/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigator.cmake)
 

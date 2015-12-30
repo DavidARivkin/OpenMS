@@ -64,7 +64,7 @@ namespace OpenMS
        * This sets the QProcess channel mode to forwarding so that output is directly
        * echod to the terminal.
        */
-      PSCPSecureFileTransfer(String hostname, String username, String password);
+      PSCPSecureFileTransfer(String hostname, String portnumber, String username, String password);
 
       /// @brief Deconstructor.
       ~PSCPSecureFileTransfer();

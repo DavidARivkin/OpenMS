@@ -42,8 +42,8 @@ namespace OpenMS
   {
   }
 
-  AbstractSecureFileTransfer::AbstractSecureFileTransfer(String hostname, String username, String password)
-    : hostname_(hostname), username_(username), password_(password)
+  AbstractSecureFileTransfer::AbstractSecureFileTransfer(String hostname, String port, String username, String password)
+    : hostname_(hostname), portnumber_(port), username_(username), password_(password)
   {
   }
 

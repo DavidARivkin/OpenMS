@@ -32,32 +32,34 @@
 // $Author: David Rivkin $
 // --------------------------------------------------------------------------
 
-#ifndef PEAKINVESTIGATORINITDIALOG_H
-#define PEAKINVESTIGATORINITDIALOG_H
 
-#include <QDialog>
-#include <QString>
-#include <QStringList>
+#include "peakinvestigatorinitdialog.h"
+#include "ui_peakinvestigatorinitdialog.h"
 
-namespace Ui {
-class PeakInvestigatorInitDialog;
+PeakInvestigatorInitDialog::PeakInvestigatorInitDialog(QWidget *parent, , QStringList &PI_versions, QStringList &RTOs) :
+    QDialog(parent),
+    ui(new Ui::PeakInvestigatorInitDialog)
+{
+    ui->setupUi(this);
+
+    ui->RTOList->addItems(PI_Versions);
+    ui->RTOList->setCurrentIndex(0);
+    ui->VersionList->addItems(PI_Versions);
+    ui->VersionList->setCurrentIndex(0);
 }
 
-class PeakInvestigatorInitDialog : public QDialog
+PeakInvestigatorInitDialog::~PeakInvestigatorInitDialog()
 {
-    Q_OBJECT
+    delete ui;
+}
 
-public:
-    explicit PeakInvestigatorInitDialog(QWidget *parent = 0, QStringList &PI_versions, QStringList &RTOs);
-    ~PeakInvestigatorInitDialog();
+QString PeakInvestigatorInitDialog::getRTO(void)
+{
+    return ui->RTOList->currentText();
+}
 
-    // Getter methods
+QString PeakInvestigatorInitDialog::getVersion(void)
+{
+    return ui->VersionList->currentText();
+}
 
-    QString getRTO(void) { return ui->RTOList->currentText(); }
-    QString getVersion(void)  { return ui->VersionList->currentText(); }
-
-private:
-    Ui::PeakInvestigatorInitDialog *ui;
-};
-
-#endif // PEAKINVESTIGATORINITDIALOG_H

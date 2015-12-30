@@ -72,7 +72,7 @@ namespace OpenMS
        * Sets logging type to ProgressLogger::CMD, initializes protected variables to sane values,
        * and initializes the libssh2 library.
        */
-      LibSSH2SecureFileTransfer(String hostname, String username, String password);
+      LibSSH2SecureFileTransfer(String hostname, String portnumber, String username, String password);
 
       /** @brief Deconstructor.
        *

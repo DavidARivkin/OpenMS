@@ -82,8 +82,8 @@ namespace OpenMS
     }
   }
 
-  LibSSH2SecureFileTransfer::LibSSH2SecureFileTransfer(String hostname, String username, String password)
-    : AbstractSecureFileTransfer(hostname, username, password), ProgressLogger()
+  LibSSH2SecureFileTransfer::LibSSH2SecureFileTransfer(String hostname, String portnumber, String username, String password)
+    : AbstractSecureFileTransfer(hostname, portnumber, username, password), ProgressLogger()
   {
     setLogType(ProgressLogger::CMD);
 
@@ -277,7 +277,7 @@ namespace OpenMS
     hints.ai_socktype = SOCK_STREAM;
 
     // get information about host (i.e. IP address) and setup socket
-    retval = getaddrinfo(hostname_.c_str(), "22", &hints, &host_info_);
+    retval = getaddrinfo(hostname_.c_str(), portnumber_.c_str(), &hints, &host_info_);
     socket_ = socket(host_info_->ai_family, host_info_->ai_socktype, host_info_->ai_protocol);
 
     // connect socket!
