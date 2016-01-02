@@ -58,6 +58,7 @@
 #include <qjson/parser.h>
 #ifdef WITH_GUI
 #include <OpenMS/VISUAL/PEAKINVESTIGATOR/PeakInvestigatorInitDialog.h>
+
 #endif
 
 #define VI_API_SUFFIX "/api/"
@@ -80,6 +81,9 @@ namespace OpenMS
     defaults_.setValue("username", "USERNAME", "Username for account registered with Veritomyx");
     defaults_.setValue("password", "PASSWORD", "Password for account registered with Veritomyx");
     defaults_.setValue("account", "0", "Account number");
+
+    defaults_.setValue("MinMass", "0", "Minimum mass to use");
+    defaults_.setValue("MaxMass", QString::number(2^32), "Maximum mass to use");
 
 #ifndef WITH_GUI
     defaults_.setValue("RTO", "RTO-24", "Response Time Objective to use");
@@ -192,6 +196,7 @@ namespace OpenMS
       dp.setMetaValue("paramter: veritomyx:username", username_);
       dp.setMetaValue("parameter: veritomyx:account", account_number_);
       dp.setMetaValue("veritomyx:job", job_);
+
 #ifndef WITH_GUI
       dp.setMetaValue("veritomyx:RTO", RTO_);
       dp.setMetaValue("veritomyx:PIVersion", PIVersion_);
@@ -243,7 +248,13 @@ namespace OpenMS
     {
       maxMass = qMax(maxMass, experiment_[i].size());
     }
+#ifdef WITH_GUI
 
+
+#else
+    dp.getMetaValue("veritomyx:MinMass", minMass);
+    dp.getMetaValue("veritomyx:MaxMass", maxMass);
+#endif
 
     QString params = QString("Version=" + reqVeritomyxCLIVersion.toQString()); // online CLI version that matches this interface
     params += "&User="	+ username_.toQString() +

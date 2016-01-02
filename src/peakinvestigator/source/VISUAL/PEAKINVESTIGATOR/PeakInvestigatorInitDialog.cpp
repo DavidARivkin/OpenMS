@@ -33,8 +33,7 @@
 // --------------------------------------------------------------------------
 
 
-#include "peakinvestigatorinitdialog.h"
-#include "ui_peakinvestigatorinitdialog.h"
+#include <OpenMS/VISUAL/PEAKINVESTIGATOR/PeakInvestigatorInitDialog.h>
 
 PeakInvestigatorInitDialog::PeakInvestigatorInitDialog(QWidget *parent, , QStringList &PI_versions, QStringList &RTOs) :
     QDialog(parent),

@@ -35,6 +35,8 @@
 #ifndef PEAKINVESTIGATORINITDIALOG_H
 #define PEAKINVESTIGATORINITDIALOG_H
 
+#include <OpenMS/VISUAL/PEAKINVESTIGATOR/UIC/ui_PeakInvestigatorInitDialog.h>
+
 #include <QtGui/QDialog>
 #include <QtCore/QString>
 #include <QtCore/QStringList>

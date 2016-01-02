@@ -67,8 +67,15 @@ endif()
 #------------------------------------------------------------------------------
 find_package(QJSON REQUIRED)
 
+include(qt_wrap_ui.cmake)
+
 # get information regarding the openswath files
 include(source/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigator.cmake)
+
+# get visual (dialogs)
+include(source/VISUAL/PEAKINVESTIGATOR/sources.cmake)
+include(include/OpenMS/VISUAL/PEAKINVESTIGATOR/sources.cmake)
+include(include/OpenMS/VISUAL/PEAKINVESTIGATOR/UIC/sources.cmake)
 
 #------------------------------------------------------------------------------
 # add the library

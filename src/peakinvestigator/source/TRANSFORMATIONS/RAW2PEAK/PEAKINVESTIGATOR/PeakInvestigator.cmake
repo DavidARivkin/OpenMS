@@ -48,6 +48,11 @@ set(sources_system_list
   SYSTEM/PSCPSecureFileTransfer.cpp
 )
 
+set(sources_dlg_list
+  PeakInvestigatorInitDialog.cpp
+  MassRangeDialog.cpp
+)
+
 if(${LIBSSH2_FOUND})
   list(APPEND sources_system_list
       SYSTEM/LibSSH2SecureFileTransfer.cpp
@@ -65,6 +70,11 @@ foreach(i ${sources_system_list})
 	list(APPEND sources_system ${directory}/${i})
 endforeach(i)
 
+set(peakinvestigator_dlg)
+foreach(i ${sources_dlg_list})
+        list(APPEND peakinvestigator_dlg ${dlg_directory}/${i})
+endforeach(i)
+
 ### end add path
 
 ### Setup format internal source
@@ -73,9 +83,11 @@ set(sources_format_internal ${directory}/FORMAT/INTERNAL/tarball.cpp)
 # header needs to be defined here, because it needs to be MOC'd
 set(peakinvestigator_header ${header_directory}/PeakInvestigator.h)
 set(peakinvestigator_source ${directory}/PeakInvestigator.cpp)
-set(peakinvestigator_dlg ${dlg_directory}/PeakInvestigatorInitDialog.cpp)
 
 qt4_wrap_cpp(mocced_sources ${peakinvestigator_header} OPTIONS ${BOOST_MOC_ARGS})
+if(WITH_GUI)
+qt4_wrap_cpp(mocced_ui ${header_dialog} OPTIONS ${BOOST_MOC_ARGS})
+endif(WITH_GUI)
 
 set(PeakInvestigatorFiles)
 list(APPEND PeakInvestigatorFiles ${peakinvestigator_source})
@@ -83,14 +95,18 @@ list(APPEND PeakInvestigatorFiles ${mocced_sources})
 list(APPEND PeakInvestigatorFiles ${sources_format})
 list(APPEND PeakInvestigatorFiles ${sources_format_internal})
 list(APPEND PeakInvestigatorFiles ${sources_system})
-list(APPEND PeakInvestigatorFiles ${sources_dlg})
+if(WITH_GUI)
+list(APPEND PeakInvestigatorFiles ${peakinvestigator_dlg})
+endif(WITH_GUI)
 
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${peakinvestigator_source})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${mocced_sources})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT" FILES ${sources_format})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\\INTERNAL" FILES ${sources_format_internal})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${sources_system})
+if(WITH_GUI)
 source_group("Source Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${peakinvestigator_dlg})
+endif(WITH_GUI)
 
 ## add groups for headers
 set(header_format_list
@@ -101,8 +117,15 @@ set(header_system_list
   SYSTEM/PSCPSecureFileTransfer.h
 )
 
+if(WITH_GUI)
+set(header_dlg_list
+  PeakInvestigatorInitDialog.h
+  MassRangeDialog.h
+)
+endif(WITH_GUI)
+
 if(${LIBSSH2_FOUND})
-  list(APPEND sources_system_list
+  list(APPEND header_system_list
       SYSTEM/LibSSH2SecureFileTransfer.h
   )
 endif(${LIBSSH2_FOUND})
@@ -117,17 +140,27 @@ set(header_system)
 foreach(i ${header_system_list})
 	list(APPEND header_system ${header_directory}/${i})
 endforeach(i)
+
+if(WITH_GUI)
+set(header_dialog)
+foreach(i ${header_dlg_list})
+        list(APPEND header_dialog ${dlg_header_directory}/${i})
+endforeach(i)
+endif(WITHGUI)
+
 ### end add path
 
 ### Setup format internal header
 set(header_format_internal ${header_directory}/FORMAT/INTERNAL/tarball.h)
-set(header_dlg ${dlg_header_directory}/PeakInvestigatorInitDialog.h)
+
 
 list(APPEND PeakInvestigatorFiles ${peakinvestigator_header})
 list(APPEND PeakInvestigatorFiles ${header_format})
 list(APPEND PeakInvestigatorFiles ${header_format_internal})
 list(APPEND PeakInvestigatorFiles ${header_system})
-list(APPEND PeakInvestigatorFiles ${header_dlg})
+if(WITH_GUI)
+list(APPEND PeakInvestigatorFiles ${header_dialog})
+endif(WITH_GUI)
 
 # define list of headers related to peakinvestigator needed for
 # installation and export
@@ -137,4 +170,6 @@ source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES $
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT" FILES ${header_format})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\\INTERNAL" FILES ${header_format_internal})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${header_system})
-source_group("Header Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${header_dlg})
+if(WITH_GUI)
+source_group("Header Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${header_dialog})
+endif(WITH_GUI)
