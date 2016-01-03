@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -54,6 +54,9 @@ public:
     double precursor_mz;
     int charge;
     bool decoy;
+    bool detecting_transition;
+    bool quantifying_transition;
+    bool identifying_transition;
 
     int getProductChargeState() const
     {
@@ -90,6 +93,35 @@ public:
       return precursor_mz;
     }
 
+    void setDetectingTransition (bool d)
+    {
+      detecting_transition = d;
+    }
+
+    bool isDetectingTransition() const
+    {
+      return detecting_transition;
+    }
+
+    void setQuantifyingTransition (bool q)
+    {
+      quantifying_transition = q;
+    }
+
+    bool isQuantifyingTransition() const
+    {
+      return quantifying_transition;
+    }
+
+    void setIdentifyingTransition (bool i)
+    {
+      identifying_transition = i;
+    }
+
+    bool isIdentifyingTransition() const
+    {
+      return identifying_transition;
+    }
   };
 
   struct OPENSWATHALGO_DLLAPI LightModification
@@ -103,10 +135,11 @@ public:
     double rt;
     int charge;
     std::string sequence;
-    std::string protein_ref;
+    std::vector<std::string> protein_refs;
     // Peptide group label (corresponds to MS:1000893, all peptides that are isotopic forms of the same peptide should be assigned the same peptide group label)
     std::string peptide_group_label;
     std::string id;
+
     int getChargeState() const
     {
       return charge;

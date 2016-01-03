@@ -57,8 +57,16 @@
 // JSON support
 #include <qjson/parser.h>
 #ifdef WITH_GUI
-#include <OpenMS/VISUAL/PEAKINVESTIGATOR/PeakInvestigatorInitDialog.h>
-
+#include <QtGui/QDialog>
+#include <QtGui/QInputDialog>
+#include <QtGui/QComboBox>
+#include <QtGui/QLineEdit>
+#include <QtGui/QLabel>
+#include <QtGui/QFormLayout>
+#include <QtGui/QVBoxLayout>
+#include <QtGui/QHBoxLayout>
+#include <QtGui/QPushButton>
+#include <QtGui/QFrame>
 #endif
 
 #define VI_API_SUFFIX "/api/"
@@ -155,6 +163,10 @@ namespace OpenMS
       checkJob_();
       break;
 
+    case DELETE:
+      removeJob_();
+      break;
+
     case FETCH:
 
       if(!getSFTPCredentials_())
@@ -186,20 +198,20 @@ namespace OpenMS
       tar.load(localFilename, experiment_);
 
       // Set-up data processing meta data to add to each scan
-      DataProcessing dp;
+      boost::shared_ptr<DataProcessing> dp(new DataProcessing());
       std::set<DataProcessing::ProcessingAction> actions;
       actions.insert(DataProcessing::PEAK_PICKING);
-      dp.setProcessingActions(actions);
-      dp.getSoftware().setName("PeakInvestigator");
-      dp.setCompletionTime(DateTime::now());
-      dp.setMetaValue("paramter: veritomyx:server", server_);
-      dp.setMetaValue("paramter: veritomyx:username", username_);
-      dp.setMetaValue("parameter: veritomyx:account", account_number_);
-      dp.setMetaValue("veritomyx:job", job_);
+      dp->setProcessingActions(actions);
+      dp->getSoftware().setName("PeakInvestigator");
+      dp->setCompletionTime(DateTime::now());
+      dp->setMetaValue("paramter: veritomyx:server", server_);
+      dp->setMetaValue("paramter: veritomyx:username", username_);
+      dp->setMetaValue("parameter: veritomyx:account", account_number_);
+      dp->setMetaValue("veritomyx:job", job_);
 
 #ifndef WITH_GUI
-      dp.setMetaValue("veritomyx:RTO", RTO_);
-      dp.setMetaValue("veritomyx:PIVersion", PIVersion_);
+      dp->setMetaValue("veritomyx:RTO", RTO_);
+      dp->setMetaValue("veritomyx:PIVersion", PIVersion_);
 #endif
 
       // Now add meta data to the scans
@@ -210,7 +222,7 @@ namespace OpenMS
       }
 
       removeJob_();
-      break;
+        break;
 
     } //end switch
 
@@ -249,8 +261,46 @@ namespace OpenMS
       maxMass = qMax(maxMass, experiment_[i].size());
     }
 #ifdef WITH_GUI
-
-
+// Ask the user for a min and max value
+    QDialog *massDlg = new QDialog();
+    massDlg->setWindowTitle("Peak Investigator Job");
+    QVBoxLayout *mainLayout = new QVBoxLayout(massDlg);
+    QFrame *formFrame = new QFrame(massDlg);
+    QFormLayout *form = new QFormLayout(formFrame);
+    QLabel *maxLabel = new QLabel("Maximum Mass:", massDlg);
+    QLabel *minLabel = new QLabel("Minimum Mass:", massDlg);
+    QLineEdit *maxEdit = new QLineEdit(QString::number(maxMass), massDlg);
+    QLineEdit *minEdit = new QLineEdit(QString::number(minMass), massDlg);
+    form->addRow(maxLabel, maxEdit);
+    form->addRow(minLabel, minEdit);
+    mainLayout->addWidget(formFrame);
+    QFrame *btnFrame = new QFrame(massDlg);
+    QPushButton *okBtn = new QPushButton("Accept", massDlg);
+    QObject::connect(okBtn, SIGNAL(clicked()), massDlg, SIGNAL(accept()));
+    QPushButton *rejectBtn = new QPushButton("Reject", massDlg);
+    QObject::connect(rejectBtn, SIGNAL(clicked()), massDlg, SIGNAL(reject()));
+    QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
+    buttonLayout->addWidget(okBtn);
+    buttonLayout->addWidget(rejectBtn);
+    mainLayout->addWidget(btnFrame);
+    if(massDlg->exec() == QDialog::Accepted) {
+        uint xmass = maxEdit->text().toUInt();
+        if(xmass > maxMass) {
+            LOG_ERROR << "The Maximum Mass must be less than " <<  maxMass;
+            return false;
+        } else {
+            maxMass = xmass;
+        }
+        xmass = minEdit->text().toUInt();
+        if(xmass > maxMass) {
+            LOG_ERROR << "The Minimum Mass must be less than the Maximum Mass";
+            return false;
+        } else {
+            minMass = xmass;
+        }
+    } else {
+        return false;
+    }
 #else
     dp.getMetaValue("veritomyx:MinMass", minMass);
     dp.getMetaValue("veritomyx:MaxMass", maxMass);
@@ -326,12 +376,10 @@ namespace OpenMS
         l << i["RTO"].toString() + ", Estimated Cost: " + i["EstCost"].toString();
     }
 
-    PeakInvestigatorInitDialog PIDlg(PI_versions_, l);
-    if(PIDlg.exec() == QDialog::Rejected) {
-        return false;
-    }
-    RTO_ = PIDlg.getRTO().split(",")[0];
-    PIVersion_ = PIDlg.getVersion();
+    PIVersion_ = QInputDialog::getItem(NULL, "Peak Investigator", "Please select which version you wish to use.", PI_versions_);
+
+    QString ret = QInputDialog::getItem(NULL, "Peak Investigator", "Please select which RTO you wish to use.\nYou have available funds of " + funds_, l);
+    RTO_ = ret.split(",")[0];
 
 #else
     RTO_ = experiment_.getMetaValue("veritomyx:RTO").toQString();

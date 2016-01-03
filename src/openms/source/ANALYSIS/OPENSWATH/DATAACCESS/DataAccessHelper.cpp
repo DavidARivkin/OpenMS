@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -146,6 +146,52 @@ namespace OpenMS
         t.decoy = true;
       }
 
+      if (transition_exp_.getTransitions()[i].metaValueExists("detecting_transition"))
+      {
+        if (!transition_exp_.getTransitions()[i].getMetaValue("detecting_transition").toBool())
+        {
+          t.detecting_transition = false;
+        }
+        else if (transition_exp_.getTransitions()[i].getMetaValue("detecting_transition").toBool())
+        {
+          t.detecting_transition = true;
+        }
+      }
+      else
+      {
+        t.detecting_transition = true;
+      }
+      if (transition_exp_.getTransitions()[i].metaValueExists("identifying_transition"))
+      {
+        if (!transition_exp_.getTransitions()[i].getMetaValue("identifying_transition").toBool())
+        {
+          t.identifying_transition = false;
+        }
+        else if (transition_exp_.getTransitions()[i].getMetaValue("identifying_transition").toBool())
+        {
+          t.identifying_transition = true;
+        }
+      }
+      else
+      {
+        t.identifying_transition = false;
+      }
+      if (transition_exp_.getTransitions()[i].metaValueExists("quantifying_transition"))
+      {
+        if (!transition_exp_.getTransitions()[i].getMetaValue("quantifying_transition").toBool())
+        {
+          t.quantifying_transition = false;
+        }
+        else if (transition_exp_.getTransitions()[i].getMetaValue("quantifying_transition").toBool())
+        {
+          t.quantifying_transition = true;
+        }
+      }
+      else
+      {
+        t.quantifying_transition = true;
+      }
+
       transition_exp.transitions.push_back(t);
     }
   }
@@ -163,9 +209,11 @@ namespace OpenMS
     p.charge = pep.getChargeState();
     p.sequence = pep.sequence;
     p.peptide_group_label = pep.getPeptideGroupLabel();
+
+    p.protein_refs.clear();
     if (!pep.protein_refs.empty())
     {
-      p.protein_ref = pep.protein_refs[0];
+      p.protein_refs.insert( p.protein_refs.begin(), pep.protein_refs.begin(), pep.protein_refs.end() ); 
     }
 
     // Mapping of peptide modifications

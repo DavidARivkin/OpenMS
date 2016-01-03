@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -51,13 +51,13 @@ namespace OpenMSExternal
 
   void ExampleLibraryFile::loadAndSaveFeatureXML()
   {
-    FeatureMap<> fm;
+    FeatureMap fm;
     Feature feature;
     fm.push_back(feature);
     String tmpfilename = "tmpfile.featureXML";
     FeatureXMLFile().store(tmpfilename, fm);
 
-    FeatureMap<> fm2;
+    FeatureMap fm2;
     FeatureXMLFile().store(tmpfilename, fm2);
   }
 }

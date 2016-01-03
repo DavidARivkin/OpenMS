@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -164,37 +164,30 @@ public:
 
   int ProgressLogger::recursion_depth_ = 0;
 
-  const std::map<ProgressLogger::LogType, String> ProgressLogger::log_type_factory_association_ = ProgressLogger::initializeLogAssociation_();
-
-  std::map<ProgressLogger::LogType, String> ProgressLogger::initializeLogAssociation_()
+  String ProgressLogger::logTypeToFactoryName_(ProgressLogger::LogType type)
   {
-    std::map<ProgressLogger::LogType, String> tmp_map;
-    tmp_map[ProgressLogger::CMD] = "CMD";
-    tmp_map[ProgressLogger::NONE] = "NONE";
-    tmp_map[ProgressLogger::GUI] = "GUI";
-
-    return tmp_map;
-  }
-
-  String ProgressLogger::logTypeToFactoryName(ProgressLogger::LogType type)
-  {
-    std::map<ProgressLogger::LogType, String>::const_iterator it = log_type_factory_association_.find(type);
-    if (it != log_type_factory_association_.end())
+    switch (type)
     {
-      return it->second;
+      case NONE:
+        return "NONE";
+      case CMD:
+        return "CMD";
+      case GUI:
+        return "GUI";
     }
-    else
-    {
-      // should never happen actually
-      throw Exception::IllegalArgument(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Their is associated logger for the given LogType.");
-    }
+
+// should never happen but gcc emits a warning/error
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunreachable-code-return"
+    return "";
+#pragma clang diagnostic pop
   }
 
   ProgressLogger::ProgressLogger() :
     type_(NONE),
     last_invoke_()
   {
-    current_logger_ = Factory<ProgressLogger::ProgressLoggerImpl>::create(logTypeToFactoryName(type_));
+    current_logger_ = Factory<ProgressLogger::ProgressLoggerImpl>::create(logTypeToFactoryName_(type_));
   }
 
   ProgressLogger::ProgressLogger(const ProgressLogger& other) :
@@ -202,7 +195,7 @@ public:
     last_invoke_(other.last_invoke_)
   {
     // recreate our logger
-    current_logger_ = Factory<ProgressLogger::ProgressLoggerImpl>::create(logTypeToFactoryName(type_));
+    current_logger_ = Factory<ProgressLogger::ProgressLoggerImpl>::create(logTypeToFactoryName_(type_));
   }
 
   ProgressLogger& ProgressLogger::operator=(const ProgressLogger& other)
@@ -216,7 +209,7 @@ public:
     delete current_logger_;
 
     // .. and get a new one
-    current_logger_ = Factory<ProgressLogger::ProgressLoggerImpl>::create(logTypeToFactoryName(type_));
+    current_logger_ = Factory<ProgressLogger::ProgressLoggerImpl>::create(logTypeToFactoryName_(type_));
 
     return *this;
   }
@@ -232,7 +225,7 @@ public:
     // remove the old logger
     delete current_logger_;
 
-    current_logger_ = Factory<ProgressLogger::ProgressLoggerImpl>::create(logTypeToFactoryName(type_));
+    current_logger_ = Factory<ProgressLogger::ProgressLoggerImpl>::create(logTypeToFactoryName_(type_));
   }
 
   ProgressLogger::LogType ProgressLogger::getLogType() const

@@ -15,7 +15,6 @@ FeatureGroupingAlgorithmLabeled.h
 FeatureGroupingAlgorithmQT.h
 FeatureGroupingAlgorithmUnlabeled.h
 LabeledPairFinder.h
-MapAlignmentAlgorithm.h
 MapAlignmentAlgorithmIdentification.h
 MapAlignmentAlgorithmPoseClustering.h
 MapAlignmentAlgorithmSpectrumAlignment.h
@@ -30,6 +29,7 @@ SimplePairFinder.h
 StablePairFinder.h
 TransformationDescription.h
 TransformationModel.h
+TransformationModelBSpline.h
 TransformationModelLinear.h
 TransformationModelInterpolated.h
 )

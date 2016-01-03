@@ -22,6 +22,7 @@ FeatureFinderMultiplex
 FeatureLinkerLabeled
 FeatureLinkerUnlabeled
 FeatureLinkerUnlabeledQT
+FidoAdapter
 FileConverter
 FileFilter
 FileInfo
@@ -51,12 +52,14 @@ MascotAdapter
 MascotAdapterOnline
 MassTraceExtractor
 MRMMapper
+MSGFPlusAdapter
 MyriMatchAdapter
 MzTabExporter
 NoiseFilterGaussian
 NoiseFilterSGolay
 OMSSAAdapter
 OpenSwathAnalyzer
+OpenSwathAssayGenerator
 OpenSwathChromatogramExtractor
 OpenSwathConfidenceScoring
 OpenSwathDecoyGenerator
@@ -98,7 +101,7 @@ TOFCalibration
 XTandemAdapter
 )
 
-## all targets with need linkage against OpenMS_GUI.lib - they also need to appear in the list above)
+## all targets requiring OpenMS_GUI
 set(TOPP_executables_with_GUIlib
 ExecutePipeline
 Resampler

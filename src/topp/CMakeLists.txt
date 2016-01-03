@@ -2,7 +2,7 @@
 #                   OpenMS -- Open-Source Mass Spectrometry
 # --------------------------------------------------------------------------
 # Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-# ETH Zurich, and Freie Universitaet Berlin 2002-2012.
+# ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 #
 # This software is released under a three-clause BSD license:
 #  * Redistributions of source code must retain the above copyright
@@ -53,10 +53,6 @@ foreach(i ${TOPP_executables})
   endif()
 endforeach(i)
 
-# collection target
-add_custom_target(TOPP)
-add_dependencies(TOPP ${TOPP_executables})
-
 # some regular TOPP tools need the GUI lib, only build them when WITH_GUI is enabled
 if(WITH_GUI)
   ## some regular TOPP tools need the GUI lib
@@ -70,6 +66,10 @@ if(WITH_GUI)
 
   set(TOPP_executables ${TOPP_executables} ${TOPP_executables_with_GUIlib})
 endif()
+
+# collection target
+add_custom_target(TOPP)
+add_dependencies(TOPP ${TOPP_executables})
 
 ## export the list of TOPP tools into CACHE
 set(TOPP_TOOLS ${TOPP_executables}

@@ -894,7 +894,7 @@ def testDataValue():
     assert a.toStringList() == [b"1.0"]
     assert a.valueType() == pyopenms.DataType.STRING_LIST
 
-    assert pyopenms.MSSpectrum().getMetaValue("nonexisingkey") is None
+    assert pyopenms.MSSpectrum().getMetaValue(b"nonexisingkey") is None
 
 @report
 def testAdduct():
@@ -1489,23 +1489,24 @@ def testTOFCalibration():
     assert pyopenms.TOFCalibration().calibrate is not None
     assert pyopenms.TOFCalibration().pickAndCalibrate is not None
 
-@report
-def testConsensusID():
-    """
-    @tests:
-     ConsensusID.__init__
-    """
-    ff = pyopenms.ConsensusID()
-    p = ff.getDefaults()
-    _testParam(p)
+# TODO: re-enable as soon as ConsensusIDAlgorithm classes are wrapped
+# @report
+# def testConsensusID():
+#     """
+#     @tests:
+#      ConsensusID.__init__
+#     """
+#     ff = pyopenms.ConsensusID()
+#     p = ff.getDefaults()
+#     _testParam(p)
 
-    assert pyopenms.ConsensusID().apply is not None
+#     assert pyopenms.ConsensusID().apply is not None
 
 @report
 def testFalseDiscoveryRate():
     """
     @tests:
-     ConsensusID.__init__
+     FalseDiscoveryRate.__init__
     """
     ff = pyopenms.FalseDiscoveryRate()
     p = ff.getDefaults()
@@ -1749,44 +1750,41 @@ def testEnzymaticDigestion():
      EnzymaticDigestion.__init__
      EnzymaticDigestion.getMissedCleavages()
      EnzymaticDigestion.setMissedCleavages()
-     EnzymaticDigestion.getEnzyme()
-     EnzymaticDigestion.setEnzyme()
-     EnzymaticDigestion.getEnzymeByName()
      EnzymaticDigestion.digest()
      EnzymaticDigestion.peptideCount()
-     EnzymaticDigestion.isLogModelEnabled()
-     EnzymaticDigestion.setLogModelEnabled()
-     EnzymaticDigestion.getLogThreshold()
-     EnzymaticDigestion.setLogThreshold()
     """
+    # removed due to name clashes
+    # EnzymaticDigestion.getEnzyme()
+    # EnzymaticDigestion.setEnzyme()
+    # EnzymaticDigestion.getEnzymeByName()
+
     ff = pyopenms.EnzymaticDigestion()
-    enz = pyopenms.EnzymaticDigestion().Enzyme()
+    #enz = pyopenms.EnzymaticDigestion().Enzyme()
 
     assert pyopenms.EnzymaticDigestion().getMissedCleavages is not None
     assert pyopenms.EnzymaticDigestion().setMissedCleavages is not None
-    assert pyopenms.EnzymaticDigestion().getEnzyme is not None
-    assert pyopenms.EnzymaticDigestion().setEnzyme is not None
-    assert pyopenms.EnzymaticDigestion().getEnzymeByName is not None
+    #assert pyopenms.EnzymaticDigestion().getEnzyme is not None
+    #assert pyopenms.EnzymaticDigestion().setEnzyme is not None
+    #assert pyopenms.EnzymaticDigestion().getEnzymeByName is not None
 
     assert pyopenms.EnzymaticDigestion().digest is not None
     assert pyopenms.EnzymaticDigestion().peptideCount is not None
 
-    assert pyopenms.EnzymaticDigestion().isLogModelEnabled is not None
-    assert pyopenms.EnzymaticDigestion().setLogModelEnabled is not None
-    assert pyopenms.EnzymaticDigestion().getLogThreshold  is not None
-    assert pyopenms.EnzymaticDigestion().setLogThreshold is not None
+    ff.setMissedCleavages(5)
+    assert ff.getMissedCleavages() == 5
 
-    ff.setLogThreshold(5) 
-    assert ff.getLogThreshold() == 5 
+    #ff.setEnzyme(enz.TRYPSIN)
+    #assert ff.getEnzyme() == enz.TRYPSIN
 
-    ff.setMissedCleavages(5) 
-    assert ff.getMissedCleavages() == 5 
-
-    ff.setEnzyme(enz.TRYPSIN) 
-    assert ff.getEnzyme() == enz.TRYPSIN
-
-    ff.setLogModelEnabled(True) 
-    assert ff.isLogModelEnabled() == True
+@report
+def testEnzymaticDigestion():
+    ff = pyopenms.EnzymaticDigestionLogModel()
+    assert pyopenms.EnzymaticDigestionLogModel().getLogThreshold is not None
+    assert pyopenms.EnzymaticDigestionLogModel().setLogThreshold is not None
+    assert pyopenms.EnzymaticDigestionLogModel().digest is not None
+    assert pyopenms.EnzymaticDigestionLogModel().peptideCount is not None
+    ff.setLogThreshold(0.25)
+    assert ff.getLogThreshold() == 0.25
 
 @report
 def testIDDecoyProbability():
@@ -2917,6 +2915,34 @@ def testReactionMonitoringTransition():
     tr = pyopenms.ReactionMonitoringTransition()
 
 @report
+def testTargetedExperiment():
+    """
+    @tests: TargetedExperiment
+     """
+    m = pyopenms.TargetedExperiment()
+    m_ = copy.copy(m)
+    assert m_ == m
+    m_ = copy.deepcopy(m)
+    assert m_ == m
+    m_ = pyopenms.TargetedExperiment(m)
+    assert m_ == m
+
+    m.clear(True)
+    m.setCVs(m.getCVs())
+
+    targeted = m
+
+    targeted.setCVs(targeted.getCVs())
+    targeted.setTargetCVTerms(targeted.getTargetCVTerms())
+    targeted.setPeptides(targeted.getPeptides())
+    targeted.setProteins(targeted.getProteins())
+    targeted.setTransitions(targeted.getTransitions())
+
+    assert m == m
+    assert not m != m
+
+
+@report
 def testMapAlignment():
 
     """
@@ -2936,10 +2962,7 @@ def testMapAlignment():
      MapAlignmentAlgorithmPoseClustering.setProgress
      MapAlignmentAlgorithmPoseClustering.startProgress
 
-     MapAlignmentTransformer.transformFeatureMaps
-     MapAlignmentTransformer.transformPeakMaps
-     MapAlignmentTransformer.transformSingleFeatureMap
-     MapAlignmentTransformer.transformSinglePeakMap
+     MapAlignmentTransformer.transformRetentionTimes
      """
     ma = pyopenms.MapAlignmentAlgorithmPoseClustering()
     assert isinstance(ma.getDefaults(), pyopenms.Param)
@@ -2956,11 +2979,7 @@ def testMapAlignment():
     ma.setReference
     ma.align
 
-
-    pyopenms.MapAlignmentTransformer.transformPeakMaps
-    pyopenms.MapAlignmentTransformer.transformFeatureMaps
-    pyopenms.MapAlignmentTransformer.transformSinglePeakMap
-    pyopenms.MapAlignmentTransformer.transformSingleFeatureMap
+    pyopenms.MapAlignmentTransformer.transformRetentionTimes
 
 @report
 def testMapAlignmentIdentification():
@@ -2971,12 +2990,8 @@ def testMapAlignmentIdentification():
      """
     ma = pyopenms.MapAlignmentAlgorithmIdentification()
 
-    assert pyopenms.MapAlignmentAlgorithmIdentification().alignPeakMaps is not None
-    assert pyopenms.MapAlignmentAlgorithmIdentification().alignFeatureMaps is not None
-    assert pyopenms.MapAlignmentAlgorithmIdentification().alignConsensusMaps is not None
-    assert pyopenms.MapAlignmentAlgorithmIdentification().alignPeptideIdentifications is not None
+    assert pyopenms.MapAlignmentAlgorithmIdentification().align is not None
     assert pyopenms.MapAlignmentAlgorithmIdentification().setReference is not None
-    assert pyopenms.MapAlignmentAlgorithmIdentification().fitModel is not None
 
 @report
 def testMapAlignmentTransformer():
@@ -2987,15 +3002,7 @@ def testMapAlignmentTransformer():
      """
     ma = pyopenms.MapAlignmentTransformer()
 
-    assert pyopenms.MapAlignmentTransformer().transformPeakMaps is not None
-    assert pyopenms.MapAlignmentTransformer().transformFeatureMaps is not None
-    assert pyopenms.MapAlignmentTransformer().transformConsensusMaps is not None
-    # assert pyopenms.MapAlignmentTransformer().transformPeptideIdentifications is not None
-    assert pyopenms.MapAlignmentTransformer().transformSinglePeakMap is not None
-    assert pyopenms.MapAlignmentTransformer().transformSingleFeatureMap is not None
-    assert pyopenms.MapAlignmentTransformer().transformSingleConsensusMap is not None
-    assert pyopenms.MapAlignmentTransformer().transformSinglePeptideIdentification is not None
-
+    assert pyopenms.MapAlignmentTransformer().transformRetentionTimes is not None
 
 @report
 def testMxxxFile():
@@ -3237,8 +3244,20 @@ def testPeptideHit():
 
     ph = pyopenms.PeptideHit(1.0, 1, 0, pyopenms.AASequence.fromString(b"A", True))
     _testMetaInfoInterface(ph)
-    ph.addProteinAccession(b"A")
-    assert ph.getProteinAccessions() == [b"A"]
+
+    assert len(ph.getPeptideEvidences()) == 0
+    assert ph.getPeptideEvidences() == []
+
+    pe = pyopenms.PeptideEvidence()
+    pe.setProteinAccession(b'B_id')
+
+    ph.addPeptideEvidence(pe)
+    assert len(ph.getPeptideEvidences()) == 1
+    assert ph.getPeptideEvidences()[0].getProteinAccession() == b'B_id'
+
+    ph.setPeptideEvidences([pe,pe])
+    assert len(ph.getPeptideEvidences()) == 2
+    assert ph.getPeptideEvidences()[0].getProteinAccession() == b'B_id'
 
     assert ph.getScore() == 1.0
     assert ph.getRank() == 1
@@ -3251,13 +3270,34 @@ def testPeptideHit():
     ph.setSequence(pyopenms.AASequence.fromString(b"AAA", True))
     assert ph.getSequence().toString() == b"AAA"
 
-    ph.setAABefore(b'B')
-    assert ph.getAABefore() == "B"
-    ph.setAAAfter(b'C')
-    assert ph.getAAAfter() == 'C'
-
     assert ph == ph
     assert not ph != ph
+
+@report
+def testPeptideEvidence():
+    """
+    @tests:
+     PeptideEvidence.__init__
+    """
+    pe = pyopenms.PeptideEvidence()
+    assert pe == pe
+    assert not pe != pe
+
+    pe.setProteinAccession(b'B_id')
+    assert pe.getProteinAccession() == b"B_id"
+
+    pe.setAABefore(b'B')
+    assert pe.getAABefore() == 'B'
+    pe.setAAAfter(b'C')
+    assert pe.getAAAfter() == 'C'
+
+    pe.setStart(5)
+    assert pe.getStart() == 5
+    pe.setEnd(9)
+    assert pe.getEnd() == 9
+
+    assert pe == pe
+    assert not pe != pe
 
 
 @report
@@ -3300,7 +3340,11 @@ def testPeptideIdentification():
     assert pi == pi
     assert not pi != pi
 
+    pe = pyopenms.PeptideEvidence()
+    pe.setProteinAccession(b'B_id')
+
     ph = pyopenms.PeptideHit(1.0, 1, 0, pyopenms.AASequence.fromString(b"A", True))
+    ph.addPeptideEvidence(pe)
     pi.insertHit(ph)
     phx, = pi.getHits()
     assert phx == ph
@@ -3308,6 +3352,11 @@ def testPeptideIdentification():
     pi.setHits([ph])
     phx, = pi.getHits()
     assert phx == ph
+
+    rv = set([])
+    peptide_hits = pi.getReferencingHits(pi.getHits(), rv)
+    assert rv == set([])
+    # assert len(peptide_hits) == 1
 
     assert isinstance(pi.getSignificanceThreshold(), float)
     assert isinstance(pi.getScoreType(), bytes)
@@ -3318,37 +3367,6 @@ def testPeptideIdentification():
     pi.assignRanks()
     pi.sort()
     assert not pi.empty()
-
-    rv = []
-    pi.getReferencingHits(b"A", rv)
-    assert rv == []
-    pi.getNonReferencingHits(b"A", rv)
-    hit, = rv
-    assert hit.getSequence().toString()== b"A"
-    assert hit.getScore() == 1.0
-    assert hit.getRank() == 1
-
-    rv = []
-    pi.getReferencingHits([b"A"], rv)
-    assert rv == []
-    pi.getNonReferencingHits([b"A"], rv)
-    hit, = rv
-    assert hit.getSequence().toString()== b"A"
-    assert hit.getScore() == 1.0
-    assert hit.getRank() == 1
-
-    ph = pyopenms.ProteinHit()
-    pi.getReferencingHits([ph], rv)
-    hit, = rv
-    assert hit.getSequence().toString()== b"A"
-    assert hit.getScore() == 1.0
-    assert hit.getRank() == 1
-    rv = []
-    pi.getNonReferencingHits([ph], rv)
-    hit, = rv
-    assert hit.getSequence().toString()== b"A"
-    assert hit.getScore() == 1.0
-    assert hit.getRank() == 1
 
     pi.setSignificanceThreshold(6.0)
 
@@ -3799,7 +3817,8 @@ def testTransformationModels():
                 pyopenms.TransformationModelInterpolated]:
         mod = clz()
         p = pyopenms.Param()
-        clz.getDefaultParameters(p)
+        mod.getDefaultParameters(p)
+
 
 @report
 def testTransformationXMLFile():
@@ -3812,7 +3831,7 @@ def testTransformationXMLFile():
     fh = pyopenms.TransformationXMLFile()
     td = pyopenms.TransformationDescription()
     fh.store(b"test.transformationXML", td)
-    fh.load(b"test.transformationXML", td)
+    fh.load(b"test.transformationXML", td, True)
     assert td.getDataPoints() == []
 
 @report
@@ -4106,7 +4125,7 @@ def testKernelMassTrace():
     assert trace.getTraceLength is not None
     assert trace.getFWHMborders is not None
     assert trace.getSmoothedIntensities is not None
-    assert trace.getScanTime is not None
+    assert trace.getAverageMS1CycleTime is not None
 
     assert trace.computeSmoothedPeakArea is not None
     assert trace.computePeakArea is not None
@@ -4114,8 +4133,8 @@ def testKernelMassTrace():
     assert trace.estimateFWHM is not None
     assert trace.computeFwhmArea is not None
     assert trace.computeFwhmAreaSmooth is not None
-    assert trace.computeFwhmAreaRobust is not None
-    assert trace.computeFwhmAreaSmoothRobust is not None
+    # assert trace.computeFwhmAreaRobust is not None
+    # assert trace.computeFwhmAreaSmoothRobust is not None
     assert trace.getIntensity is not None
     assert trace.getMaxIntensity is not None
 
@@ -4194,4 +4213,21 @@ def test_MapConversion():
     assert(cmap.size() == 2)
     assert(cmap[0].getIntensity() == 10.0)
     assert(cmap[0].getMZ() == 20.0)
+
+def test_BSpline2d():
+
+    x = [1.0, 6.0, 8.0, 10.0, 15.0]
+    y = [2.0, 5.0, 6.0, 12.0, 13.0]
+    spline = pyopenms.BSpline2d(x,y,0, pyopenms.BoundaryCondition.BC_ZERO_ENDPOINTS, 0)
+
+    assert spline.ok()
+    assert abs(spline.eval(6.0) - 5.0 < 0.01)
+    assert abs(spline.derivative(6.0) - 5.0 < 0.01)
+
+    y_new = [4.0, 5.0, 6.0, 12.0, 13.0]
+    spline.solve(y_new)
+
+    assert spline.ok()
+    assert abs(spline.eval(6.0) - 5.0 < 0.01)
+
 

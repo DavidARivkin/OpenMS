@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -126,12 +126,18 @@ namespace OpenMS
     if (bz[0] == 'B' && bz[1] == 'Z') // bzip2
     {
       Bzip2Ifstream bzip2_file(filename.c_str());
+
+      // read in 1024 bytes (keep last byte for zero to end string)
       char buffer[1024];
-      bzip2_file.read(buffer, 1024);
+      size_t bytes_read = bzip2_file.read(buffer, 1024-1);
+      buffer[bytes_read] = '\0';
+
+      // get first five lines
       String buffer_str(buffer);
       vector<String> split;
       buffer_str.split('\n', split);
       split.resize(5);
+
       first_line = split[0];
       two_five = split[1] + ' ' + split[2] + ' ' + split[3] + ' ' + split[4];
       all_simple = first_line + ' ' + two_five;
@@ -140,12 +146,18 @@ namespace OpenMS
     else if (bz[0] == g1 && bz[1] == g2) // gzip
     {
       GzipIfstream gzip_file(filename.c_str());
+
+      // read in 1024 bytes (keep last byte for zero to end string)
       char buffer[1024];
-      gzip_file.read(buffer, 1024);
+      size_t bytes_read = gzip_file.read(buffer, 1024-1);
+      buffer[bytes_read] = '\0';
+
+      // get first five lines
       String buffer_str(buffer);
       vector<String> split;
       buffer_str.split('\n', split);
       split.resize(5);
+
       first_line = split[0];
       two_five = split[1] + ' ' + split[2] + ' ' + split[3] + ' ' + split[4];
       all_simple = first_line + ' ' + two_five;
@@ -156,12 +168,42 @@ namespace OpenMS
     {
       //load first 5 lines
       TextFile file(filename, true, 5);
-      file.resize(5); // in case not enough lines are in the file
-      two_five = file[1] + ' ' + file[2] + ' ' + file[3] + ' ' + file[4];
-      two_five.substitute('\t', ' ');
-      all_simple = file[0] + ' ' + two_five;
-      first_line = file[0];
-      complete_file = file;
+      TextFile::ConstIterator file_it = file.begin();
+
+      // file could be empty
+      if (file_it == file.end())
+      {
+        two_five = " ";
+        all_simple = " ";
+        first_line = " ";
+      }
+      else
+      {
+        // concat elements 2 to 5
+        two_five = "";
+        ++file_it;
+        for (int i = 1; i < 5; ++i)
+        {
+          if (file_it != file.end())
+          {
+            two_five += *file_it;
+            ++file_it;
+          }
+          else
+          {
+            two_five += "";
+          }
+          two_five += " ";
+        }
+
+        // remove trailing space
+        two_five = two_five.chop(1);
+        two_five.substitute('\t', ' ');
+        all_simple = *(file.begin()) + ' ' + two_five;
+        first_line = *(file.begin());
+      }
+
+      complete_file.insert(complete_file.end(), file.begin(), file.end());
     }
     //std::cerr << "\n Line1:\n" << first_line << "\nLine2-5:\n" << two_five << "\nall:\n" << all_simple << "\n\n";
 
@@ -260,7 +302,7 @@ namespace OpenMS
     }
 
     // PNG file (to be really correct, the first eight bytes of the file would
-    // have to be checked; see e.g. the wikipedia article)
+    // have to be checked; see e.g. the Wikipedia article)
     if (first_line.substr(1, 3) == "PNG")
       return FileTypes::PNG;
 
@@ -328,7 +370,7 @@ namespace OpenMS
     {
       for (Size i = 0; i != complete_file.size(); ++i)
       {
-        if (complete_file[i].trim()=="FORMAT=Mascot generic" || complete_file[i].trim()=="BEGIN IONS")
+        if (complete_file[i].trim() == "FORMAT=Mascot generic" || complete_file[i].trim() == "BEGIN IONS")
         {
           return FileTypes::MGF;
         }
@@ -374,6 +416,12 @@ if (first_line.hasSubstring("File	First Scan	Last Scan	Num of Scans	Charge	Monoi
       return FileTypes::KROENIK;
     }
 
+    // Percolator tab-delimited output (PSM level, .psms)
+    if (first_line.hasPrefix("PSMId\tscore\tq-value\tposterior_error_prob\tpeptide\tproteinIds"))
+    {
+      return FileTypes::PSMS;
+    }
+
     // EDTA file
     // hard to tell... so we don't even try...
 
@@ -390,12 +438,12 @@ if (first_line.hasSubstring("File	First Scan	Last Scan	Num of Scans	Charge	Monoi
     return options_;
   }
 
-  void FileHandler::setOptions(const PeakFileOptions & options)
+  void FileHandler::setOptions(const PeakFileOptions& options)
   {
-      options_ = options;
+    options_ = options;
   }
 
-  String FileHandler::computeFileHash_(const String& filename) const
+  String FileHandler::computeFileHash(const String& filename)
   {
     QCryptographicHash crypto(QCryptographicHash::Sha1);
     QFile file(filename.toQString());
@@ -405,6 +453,51 @@ if (first_line.hasSubstring("File	First Scan	Last Scan	Num of Scans	Charge	Monoi
       crypto.addData(file.read(8192));
     }
     return String((QString)crypto.result().toHex());
+  }
+
+  bool FileHandler::loadFeatures(const String& filename, FeatureMap& map, FileTypes::Type force_type)
+  {
+    //determine file type
+    FileTypes::Type type;
+    if (force_type != FileTypes::UNKNOWN)
+    {
+      type = force_type;
+    }
+    else
+    {
+      try
+      {
+        type = getType(filename);
+      }
+      catch (Exception::FileNotFound)
+      {
+        return false;
+      }
+    }
+
+    //load right file
+    if (type == FileTypes::FEATUREXML)
+    {
+      FeatureXMLFile().load(filename, map);
+    }
+    else if (type == FileTypes::TSV)
+    {
+      MsInspectFile().load(filename, map);
+    }
+    else if (type == FileTypes::PEPLIST)
+    {
+      SpecArrayFile().load(filename, map);
+    }
+    else if (type == FileTypes::KROENIK)
+    {
+      KroenikFile().load(filename, map);
+    }
+    else
+    {
+      return false;
+    }
+
+    return true;
   }
 
 } // namespace OpenMS

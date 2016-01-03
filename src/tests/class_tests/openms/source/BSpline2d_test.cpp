@@ -1,32 +1,32 @@
 // --------------------------------------------------------------------------
-//                   OpenMS -- Open-Source Mass Spectrometry               
+//                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
-// 
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
+//
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
 //    notice, this list of conditions and the following disclaimer.
 //  * Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
 //    documentation and/or other materials provided with the distribution.
-//  * Neither the name of any author or any participating institution 
-//    may be used to endorse or promote products derived from this software 
+//  * Neither the name of any author or any participating institution
+//    may be used to endorse or promote products derived from this software
 //    without specific prior written permission.
-// For a full list of authors, refer to the file AUTHORS. 
+// For a full list of authors, refer to the file AUTHORS.
 // --------------------------------------------------------------------------
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL ANY OF THE AUTHORS OR THE CONTRIBUTING 
-// INSTITUTIONS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
-// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; 
-// OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
-// OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+// ARE DISCLAIMED. IN NO EVENT SHALL ANY OF THE AUTHORS OR THE CONTRIBUTING
+// INSTITUTIONS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+// OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+// OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 // ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // --------------------------------------------------------------------------
 // $Maintainer: $
 // $Authors: $
@@ -68,7 +68,7 @@ BSpline2d* null_ptr = 0;
 CsvFile sinus_file(OPENMS_GET_TEST_DATA_PATH("BSpline2d_test_sinus.txt"), '\t');
 std::vector<double> x;
 std::vector<double> y;
-for (Size i = 0; i != sinus_file.size(); ++i)
+for (Size i = 0; i != sinus_file.rowCount(); ++i)
 {
   StringList sl;
   if (sinus_file.getRow(i, sl))
@@ -102,7 +102,7 @@ START_SECTION((bool solve(const std::vector< double > &y)))
 }
 END_SECTION
 
-START_SECTION((double eval(double x)))
+START_SECTION((double eval(const double x) const))
 {
   // calculate error of noisy points
   double mean_squared_error_noisy(0.0);
@@ -125,7 +125,7 @@ START_SECTION((double eval(double x)))
       mean_squared_error_smoothed += error * error;
     }
     mean_squared_error_smoothed /= (double)x.size();
- 
+
     // error of smoothed signal must be much lower (for this data it should be at least half of the unsmoothed one)
     TEST_EQUAL(mean_squared_error_smoothed < 0.5 * mean_squared_error_noisy, true)
   }
@@ -140,17 +140,17 @@ START_SECTION((double eval(double x)))
       mean_squared_error_smoothed += error * error;
     }
     mean_squared_error_smoothed /= (double)x.size();
- 
+
     // error of smoothed signal must be lower (for this data it should be at least half of the unsmoothed one)
     TEST_EQUAL(mean_squared_error_smoothed < 0.5 * mean_squared_error_noisy, true)
   }
 }
 END_SECTION
 
-START_SECTION((double derivative(double x)))
+START_SECTION((double derivative(const double x) const))
 {
   {
-    // calculate error on first derivative of smoothed points. 
+    // calculate error on first derivative of smoothed points.
     // preserve curvature - otherwise we get large errors on derivative
     BSpline2d b(x, y, 0, BSpline2d::BC_ZERO_SECOND);
     double mean_absolute_derivative_error(0.0);
@@ -160,40 +160,15 @@ START_SECTION((double derivative(double x)))
       mean_absolute_derivative_error += error;
     }
     mean_absolute_derivative_error /= (double)x.size();
- 
+
     //cout << mean_absolute_derivative_error << endl;
     TEST_EQUAL(mean_absolute_derivative_error < 10.0 * 0.2, true)
   }
-  
+
 }
 END_SECTION
 
-START_SECTION((double coefficient(int n)))
-{
-  vector<double> x2;
-  vector<double> y2;
-  for (Size i = 0; i != 100; ++i)
-  {
-    x2.push_back(i);
-    y2.push_back(i);
-  }
-  
-  // b-spline coefficients should increase monotopically for this example (checked with R)
-  BSpline2d b(x2, y2, 0, BSpline2d::BC_ZERO_SECOND, 100);
-  bool coeff_mono_increase = true;
-  for (Size i = 1; i < 100; ++i)
-  {
-    if (b.coefficient(i) <= b.coefficient(i - 1))
-    {
-      coeff_mono_increase = false;
-    }
-  }
-  TEST_EQUAL(coeff_mono_increase, true);
-}
-END_SECTION
-
-
-START_SECTION((bool ok()))
+START_SECTION((bool ok() const))
 {
   vector<double> x;
   vector<double> y;
@@ -221,18 +196,9 @@ START_SECTION((bool ok()))
 }
 END_SECTION
 
-
-START_SECTION((Size nX()))
+START_SECTION((void debug(bool enable)))
 {
-  vector<double> x;
-  vector<double> y;
-  for (Size i = 0; i != 10; ++i)
-  {
-    x.push_back(i);
-    y.push_back(i);
-  }
-  BSpline2d b(x, y);
-  TEST_EQUAL(b.nX(), 10)
+  NOT_TESTABLE
 }
 END_SECTION
 

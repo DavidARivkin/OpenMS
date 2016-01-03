@@ -2,7 +2,7 @@
 #                   OpenMS -- Open-Source Mass Spectrometry
 # --------------------------------------------------------------------------
 # Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-# ETH Zurich, and Freie Universitaet Berlin 2002-2012.
+# ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 #
 # This software is released under a three-clause BSD license:
 #  * Redistributions of source code must retain the above copyright
@@ -40,6 +40,7 @@ cmake_minimum_required(VERSION 2.8.3 FATAL_ERROR)
 
 # add OpenMS includes
 include_directories(SYSTEM ${OpenMS_INCLUDE_DIRECTORIES})
+add_definitions(/DBOOST_ALL_NO_LIB)
 
 # add all the tools
 set(UTILS_executables)
@@ -50,10 +51,6 @@ foreach(i ${UTILS_executables})
   install_tool(${i})
   target_link_libraries(${i} ${OpenMS_LIBRARIES})
 endforeach(i)
-
-# collection target
-add_custom_target(UTILS)
-add_dependencies(UTILS ${UTILS_executables})
 
 # some regular UTILS tools need the GUI lib, only build them when WITH_GUI is enabled
 if(WITH_GUI)
@@ -69,13 +66,13 @@ if(WITH_GUI)
   set(UTILS_executables ${UTILS_executables} ${UTILS_executables_with_GUIlib})
 endif()
 
+# collection target
+add_custom_target(UTILS)
+add_dependencies(UTILS ${UTILS_executables})
+
 # FFSuperHirn requires linking against SuperHirn
 include_directories(SYSTEM ${SuperHirn_INCLUDE_DIRECTORIES})
 target_link_libraries(FeatureFinderSuperHirn SuperHirn)
-
-# PeakInvestigator requires linking against PeakInvestigatorImpl
-include_directories(SYSTEM ${PeakInvestigatorImpl_INCLUDE_DIRECTORIES})
-target_link_libraries(PeakInvestigator PeakInvestigatorImpl)
 
 ## export the list of UTILS tools into CACHE
 set(UTILS_TOOLS ${UTILS_executables}

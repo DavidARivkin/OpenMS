@@ -1,9 +1,9 @@
-from libcpp cimport bool
 from Types cimport *
 from DataValue cimport *
 from Feature cimport *
 from ProteinIdentification cimport *
 from AASequence cimport *
+from PeptideEvidence cimport *
 
 cdef extern from "<OpenMS/METADATA/PeptideHit.h>" namespace "OpenMS":
 
@@ -24,21 +24,19 @@ cdef extern from "<OpenMS/METADATA/PeptideHit.h>" namespace "OpenMS":
         UInt getRank() nogil except +
         AASequence getSequence() nogil except +
         Int getCharge() nogil except +
-        libcpp_vector[String] getProteinAccessions() nogil except +
-        void setProteinAccessions(libcpp_vector[String]) nogil except +
+        libcpp_vector[PeptideEvidence] getPeptideEvidences() nogil except +
+        void setPeptideEvidences(libcpp_vector[PeptideEvidence]) nogil except +
+        void addPeptideEvidence(PeptideEvidence) nogil except +
+        libcpp_set[String] extractProteinAccessions() nogil except +
 
+        void setAnalysisResults(libcpp_vector[PeptideHit_AnalysisResult] aresult) nogil except +
+        void addAnalysisResults(PeptideHit_AnalysisResult aresult) nogil except +
+        libcpp_vector[PeptideHit_AnalysisResult] getAnalysisResults() nogil except +
 
-        void setScore(float ) nogil except +
+        void setScore(double) nogil except +
         void setRank(UInt) nogil except +
         void setSequence(AASequence) nogil except +
         void setCharge(Int) nogil except +
-
-        void addProteinAccession(String) nogil except +
-        void setAABefore(char) nogil except +
-        char getAABefore() nogil except +
-        void setAAAfter(char) nogil except +
-        char getAAAfter() nogil except +
-
 
         bool operator==(PeptideHit) nogil except +
         bool operator!=(PeptideHit) nogil except +
@@ -60,7 +58,13 @@ cdef extern from "<OpenMS/METADATA/PeptideHit.h>" namespace "OpenMS":
         void removeMetaValue(unsigned int) nogil except +
 
 
+    cdef cppclass PeptideHit_AnalysisResult "OpenMS::PeptideHit::PepXMLAnalysisResult":
 
+        PeptideHit_AnalysisResult() nogil except +
+        PeptideHit_AnalysisResult(PeptideHit_AnalysisResult) nogil except + #wrap-ignore
 
-
+        String score_type
+        bool higher_is_better
+        double main_score
+        libcpp_map[String, double] sub_scores
 

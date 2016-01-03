@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -64,7 +64,7 @@ namespace OpenMS
   */
   template <typename PeakT = Peak1D>
   class MSSpectrum :
-    public std::vector<PeakT>,
+    private std::vector<PeakT>,
     public RangeManager<1>,
     public SpectrumSettings
   {
@@ -92,7 +92,7 @@ public:
     struct RTLess :
       public std::binary_function<MSSpectrum, MSSpectrum, bool>
     {
-      inline bool operator()(const MSSpectrum & a, const MSSpectrum & b) const
+      inline bool operator()(const MSSpectrum& a, const MSSpectrum& b) const
       {
         return a.getRT() < b.getRT();
       }
@@ -127,6 +127,35 @@ public:
     typedef typename ContainerType::const_reverse_iterator ConstReverseIterator;
     //@}
 
+    ///@name Export methods from std::vector<PeakT>
+    //@{
+    using ContainerType::operator[];
+    using ContainerType::begin;
+    using ContainerType::rbegin;
+    using ContainerType::end;
+    using ContainerType::rend;
+    using ContainerType::resize;
+    using ContainerType::size;
+    using ContainerType::push_back;
+    using ContainerType::pop_back;
+    using ContainerType::empty;
+    using ContainerType::front;
+    using ContainerType::back;
+    using ContainerType::reserve;
+    using ContainerType::insert;
+    using ContainerType::erase;
+    using ContainerType::swap;
+
+    using typename ContainerType::iterator;
+    using typename ContainerType::const_iterator;
+    using typename ContainerType::size_type;
+    using typename ContainerType::value_type;
+    using typename ContainerType::reference;
+    using typename ContainerType::const_reference;
+    using typename ContainerType::pointer;
+    using typename ContainerType::difference_type;
+    //@}
+
 
     /// Constructor
     MSSpectrum() :
@@ -142,7 +171,7 @@ public:
     {}
 
     /// Copy constructor
-    MSSpectrum(const MSSpectrum & source) :
+    MSSpectrum(const MSSpectrum& source) :
       ContainerType(source),
       RangeManager<1>(source),
       SpectrumSettings(source),
@@ -159,7 +188,7 @@ public:
     {}
 
     /// Assignment operator
-    MSSpectrum & operator=(const MSSpectrum & source)
+    MSSpectrum& operator=(const MSSpectrum& source)
     {
       if (&source == this) return *this;
 
@@ -178,24 +207,25 @@ public:
     }
 
     /// Equality operator
-    bool operator==(const MSSpectrum & rhs) const
+    bool operator==(const MSSpectrum& rhs) const
     {
       //name_ can differ => it is not checked
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wfloat-equal"
       return std::operator==(*this, rhs) &&
              RangeManager<1>::operator==(rhs) &&
-             SpectrumSettings::operator==(rhs)  &&
+             SpectrumSettings::operator==(rhs) &&
              retention_time_ == rhs.retention_time_ &&
              ms_level_ == rhs.ms_level_ &&
              float_data_arrays_ == rhs.float_data_arrays_ &&
              string_data_arrays_ == rhs.string_data_arrays_ &&
              integer_data_arrays_ == rhs.integer_data_arrays_;
+
 #pragma clang diagnostic pop
     }
 
     /// Equality operator
-    bool operator!=(const MSSpectrum & rhs) const
+    bool operator!=(const MSSpectrum& rhs) const
     {
       return !(operator==(rhs));
     }
@@ -238,13 +268,13 @@ public:
     }
 
     /// Returns the name
-    inline const String & getName() const
+    inline const String& getName() const
     {
       return name_;
     }
 
     /// Sets the name
-    inline void setName(const String & name)
+    inline void setName(const String& name)
     {
       name_ = name;
     }
@@ -265,37 +295,37 @@ public:
     */
     //@{
     /// Returns a const reference to the float meta data arrays
-    inline const FloatDataArrays & getFloatDataArrays() const
+    inline const FloatDataArrays& getFloatDataArrays() const
     {
       return float_data_arrays_;
     }
 
     /// Returns a mutable reference to the float meta data arrays
-    inline FloatDataArrays & getFloatDataArrays()
+    inline FloatDataArrays& getFloatDataArrays()
     {
       return float_data_arrays_;
     }
 
     /// Returns a const reference to the string meta data arrays
-    inline const StringDataArrays & getStringDataArrays() const
+    inline const StringDataArrays& getStringDataArrays() const
     {
       return string_data_arrays_;
     }
 
     /// Returns a mutable reference to the string meta data arrays
-    inline StringDataArrays & getStringDataArrays()
+    inline StringDataArrays& getStringDataArrays()
     {
       return string_data_arrays_;
     }
 
     /// Returns a const reference to the integer meta data arrays
-    inline const IntegerDataArrays & getIntegerDataArrays() const
+    inline const IntegerDataArrays& getIntegerDataArrays() const
     {
       return integer_data_arrays_;
     }
 
     /// Returns a mutable reference to the integer meta data arrays
-    inline IntegerDataArrays & getIntegerDataArrays()
+    inline IntegerDataArrays& getIntegerDataArrays()
     {
       return integer_data_arrays_;
     }
@@ -450,6 +480,8 @@ public:
     /// Checks if all peaks are sorted with respect to ascending m/z
     bool isSorted() const
     {
+      if (this->size() < 2) return true;
+
       for (Size i = 1; i < this->size(); ++i)
       {
         if (this->operator[](i - 1).getMZ() > this->operator[](i).getMZ()) return false;
@@ -494,6 +526,89 @@ public:
       {
         return Size(it2 - ContainerType::begin());
       }
+    }
+
+    /**
+      @brief Binary search for the peak nearest to a specific m/z given a +/- tolerance windows in Th
+
+      @param mz The searched for mass-to-charge ratio searched
+      @param tolerance The non-negative tolerance applied to both sides of mz
+
+      @return Returns the index of the peak or -1 if no peak present in tolerance window or if spectrum is empty
+
+      @note Make sure the spectrum is sorted with respect to m/z! Otherwise the result is undefined.
+      @note Peaks exactly on borders are considered in tolerance window.
+    */
+    Int findNearest(CoordinateType mz, CoordinateType tolerance) const
+    {
+      if (ContainerType::empty()) return -1; 
+      Size i = findNearest(mz);
+      const double found_mz = this->operator[](i).getMZ();
+      if (found_mz >= mz - tolerance && found_mz <= mz + tolerance)
+      {
+        return static_cast<Int>(i);
+      }
+      else
+      {
+        return -1;
+      }
+    }
+
+    /**
+      @brief Search for the peak nearest to a specific m/z given two +/- tolerance windows in Th
+
+      @param mz The searched for mass-to-charge ratio searched
+      @param tolerance_left The non-negative tolerance applied left of mz
+      @param tolerance_right The non-negative tolerance applied right of mz
+
+      @return Returns the index of the peak or -1 if no peak present in tolerance window or if spectrum is empty
+
+      @note Make sure the spectrum is sorted with respect to m/z! Otherwise the result is undefined.
+      @note Peaks exactly on borders are considered in tolerance window.
+      @note Search for the left border is done using a binary search followed by a linear scan
+    */
+    Int findNearest(CoordinateType mz, CoordinateType tolerance_left, CoordinateType tolerance_right) const
+    {
+      if (ContainerType::empty()) return -1; 
+      
+      // do a binary search for nearest peak first
+      Size i = findNearest(mz);
+
+      const double nearest_mz = this->operator[](i).getMZ();
+
+      if (nearest_mz < mz)
+      {
+        if (nearest_mz >= mz - tolerance_left) 
+        {
+          return i; // success: nearest peak is in left tolerance window
+        }
+        else
+        {
+          if (i == this->size() - 1) return -1; // we are at the last peak which is too far left
+          // Nearest peak is too far left so there can't be a closer peak in the left window.
+          // There still might be a peak to the right of mz that falls in the right window
+          ++i;  // now we are at a peak exactly on or to the right of mz
+          const double next_mz = this->operator[](i).getMZ();
+          if (next_mz <= mz + tolerance_right) return i; 
+        }
+      }
+      else
+      {
+        if (nearest_mz <= mz + tolerance_right) 
+        {
+          return i; // success: nearest peak is in right tolerance window
+        }
+        else
+        {
+          if (i == 0) return -1; // we are at the first peak which is too far right
+          --i;  // now we are at a peak exactly on or to the right of mz
+          const double next_mz = this->operator[](i).getMZ();
+          if (next_mz >= mz - tolerance_left) return i; 
+        }
+      }
+
+      // neither in the left nor the right tolerance window
+      return -1;
     }
 
     /**
@@ -640,12 +755,12 @@ protected:
 
   /// Print the contents to a stream.
   template <typename PeakT>
-  std::ostream & operator<<(std::ostream & os, const MSSpectrum<PeakT> & spec)
+  std::ostream& operator<<(std::ostream& os, const MSSpectrum<PeakT>& spec)
   {
     os << "-- MSSPECTRUM BEGIN --" << std::endl;
 
     //spectrum settings
-    os << static_cast<const SpectrumSettings &>(spec);
+    os << static_cast<const SpectrumSettings&>(spec);
 
     //peaklist
     for (typename MSSpectrum<PeakT>::ConstIterator it = spec.begin(); it != spec.end(); ++it)

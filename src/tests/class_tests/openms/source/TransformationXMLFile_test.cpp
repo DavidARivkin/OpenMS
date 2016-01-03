@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -70,7 +70,7 @@ START_SECTION([EXTRA] static bool isValid(const String& filename))
 END_SECTION
 
 
-START_SECTION(void load(const String& filename, TransformationDescription& transformation))
+START_SECTION(void load(const String & filename, TransformationDescription & transformation, bool fit_model=true))
 {
   TransformationDescription trafo;
   TransformationXMLFile trafo_xml;
@@ -99,6 +99,12 @@ START_SECTION(void load(const String& filename, TransformationDescription& trans
   TEST_REAL_SIMILAR(trafo.getDataPoints()[0].second, 5.2);
   TEST_REAL_SIMILAR(trafo.getDataPoints()[1].second, 6.25);
   TEST_REAL_SIMILAR(trafo.getDataPoints()[2].second, 7.3);
+
+  // also test the option of not performing the actual model fit
+  trafo_xml.load(OPENMS_GET_TEST_DATA_PATH("TransformationXMLFile_2.trafoXML"), trafo, false);
+  TEST_STRING_EQUAL(trafo.getModelType(), "none");
+  params = trafo.getModelParameters();
+  TEST_EQUAL(params.empty(), true);
 }
 END_SECTION
 
@@ -154,8 +160,9 @@ START_SECTION(void store(String filename, const TransformationDescription& trans
   trafo_xml.load(tmp_file_pairs, trafo2);
   TEST_STRING_EQUAL(trafo2.getModelType(), "interpolated");
   params = trafo2.getModelParameters();
-  TEST_EQUAL(params.size(), 1);
+  TEST_EQUAL(params.size(), 2);
   TEST_STRING_EQUAL(params.getValue("interpolation_type"), "linear");
+  TEST_STRING_EQUAL(params.getValue("extrapolation_type"), "two-point-linear");
   TEST_EQUAL(trafo2.getDataPoints().size(), 3);
   TEST_REAL_SIMILAR(trafo2.getDataPoints()[0].first, 1.2);
   TEST_REAL_SIMILAR(trafo2.getDataPoints()[1].first, 2.2);

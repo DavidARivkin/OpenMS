@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry               
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 // 
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -264,7 +264,7 @@ START_SECTION((template <bool add_mass_traces, class Container> void set2DData(c
 
   ///////////////////////////////////////
   // test adding of mass traces
-	FeatureMap<> fm, fm2, fm_out;
+	FeatureMap fm, fm2, fm_out;
   Feature f1;
 	f1.setIntensity(7.5f);
 	f1.setRT(8.5);
@@ -1040,6 +1040,17 @@ END_SECTION
 
 START_SECTION((const std::vector<MSChromatogram<ChromatogramPeakType> >& getChromatograms() const))
 	NOT_TESTABLE // tested above
+END_SECTION
+
+START_SECTION((std::vector<MSChromatogram<ChromatogramPeakType> >& getChromatograms()))
+  MSExperiment<> exp;
+  vector<MSChromatogram<> > chromatograms(2);
+  exp.getChromatograms().swap(chromatograms);
+  TEST_EQUAL(exp.getChromatograms().size(), 2);
+  TEST_EQUAL(chromatograms.size(), 0);
+  exp.getChromatograms().swap(chromatograms);
+  TEST_EQUAL(exp.getChromatograms().size(), 0);
+  TEST_EQUAL(chromatograms.size(), 2);
 END_SECTION
 
 START_SECTION((const MSChromatogram<ChromatogramPeakType> getTIC() const))

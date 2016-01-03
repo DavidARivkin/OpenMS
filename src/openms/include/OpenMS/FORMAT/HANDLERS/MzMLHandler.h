@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -55,10 +55,12 @@
 #include <OpenMS/FORMAT/CVMappingFile.h>
 #include <OpenMS/FORMAT/ControlledVocabulary.h>
 #include <OpenMS/INTERFACES/IMSDataConsumer.h>
+#include <OpenMS/CONCEPT/Helpers.h>
 
 #include <OpenMS/SYSTEM/File.h>
 
 #include <sstream>
+#include <boost/shared_ptr.hpp>
 #include <iostream>
 
 #include <QRegExp>
@@ -101,6 +103,8 @@ namespace OpenMS
         @note Only upon destruction of this class it can be guaranteed that all
         data has been appended to the appropriate consumer of the data. Do not
         try to access the data before that.
+
+        @todo replace hardcoded cv stuff with more flexible handling via obo r/w.
     */
     template <typename MapType>
     class MzMLHandler :
@@ -220,6 +224,8 @@ public:
       void setOptions(const PeakFileOptions& opt)
       {
         options_ = opt;
+        spectrum_data_.reserve(options_.getMaxDataPoolSize());
+        chromatogram_data_.reserve(options_.getMaxDataPoolSize());
       }
 
       /// Get the peak file options
@@ -238,7 +244,7 @@ public:
       }
 
       /// Set the IMSDataConsumer consumer which will consume the read data
-      void setMSDataConsumer(Interfaces::IMSDataConsumer<MapType> * consumer)
+      void setMSDataConsumer(Interfaces::IMSDataConsumer<MapType>* consumer)
       {
         consumer_ = consumer;
       }
@@ -257,8 +263,8 @@ protected:
       typedef MzMLHandlerHelper::BinaryData BinaryData;
 
       void writeSpectrum_(std::ostream& os, const SpectrumType& spec, Size s,
-              Internal::MzMLValidator& validator, bool renew_native_ids,
-              std::vector<std::vector<DataProcessing> > & dps);
+                          Internal::MzMLValidator& validator, bool renew_native_ids,
+                          std::vector<std::vector< ConstDataProcessingPtr > >& dps);
 
       void writeChromatogram_(std::ostream& os, const ChromatogramType& chromatogram, Size c, Internal::MzMLValidator& validator);
 
@@ -266,8 +272,8 @@ protected:
       void writeContainerData(std::ostream& os, const PeakFileOptions& pf_options_, const ContainerT& container, String array_type)
       {
 
-        bool is32Bit = ( (array_type == "intensity" && pf_options_.getIntensity32Bit()) || pf_options_.getMz32Bit());
-        if (! is32Bit || pf_options_.getNumpressConfigurationMassTime().np_compression != MSNumpressCoder::NONE)
+        bool is32Bit = ((array_type == "intensity" && pf_options_.getIntensity32Bit()) || pf_options_.getMz32Bit());
+        if (!is32Bit || pf_options_.getNumpressConfigurationMassTime().np_compression != MSNumpressCoder::NONE)
         {
           std::vector<double> data_to_encode(container.size());
           if (array_type == "intensity")
@@ -281,7 +287,7 @@ protected:
           {
             for (Size p = 0; p < container.size(); ++p)
             {
-                data_to_encode[p] = container[p].getMZ();
+              data_to_encode[p] = container[p].getMZ();
             }
           }
           writeBinaryDataArray(os, pf_options_, data_to_encode, false, array_type);
@@ -301,7 +307,7 @@ protected:
           {
             for (Size p = 0; p < container.size(); ++p)
             {
-                data_to_encode[p] = container[p].getMZ();
+              data_to_encode[p] = container[p].getMZ();
             }
           }
           writeBinaryDataArray(os, pf_options_, data_to_encode, true, array_type);
@@ -332,9 +338,9 @@ protected:
             {
               try
               {
-                populateSpectraWithData_(spectrum_data_[i].data ,
-                        spectrum_data_[i].default_array_length, options_,
-                        spectrum_data_[i].spectrum);
+                populateSpectraWithData_(spectrum_data_[i].data,
+                                         spectrum_data_[i].default_array_length, options_,
+                                         spectrum_data_[i].spectrum);
                 if (options_.getSortSpectraByMZ() && !spectrum_data_[i].spectrum.isSorted())
                 {
                   spectrum_data_[i].spectrum.sortByPosition();
@@ -342,7 +348,7 @@ protected:
               }
               catch (...)
               {
-                #pragma omp critical(HandleException)
+#pragma omp critical(HandleException)
                 ++errCount;
               }
             }
@@ -394,16 +400,16 @@ protected:
             // parallel exception catching and re-throwing business
             try
             {
-              populateChromatogramsWithData_(chromatogram_data_[i].data ,
-                      chromatogram_data_[i].default_array_length, options_,
-                      chromatogram_data_[i].chromatogram);
+              populateChromatogramsWithData_(chromatogram_data_[i].data,
+                                             chromatogram_data_[i].default_array_length, options_,
+                                             chromatogram_data_[i].chromatogram);
               if (options_.getSortChromatogramsByRT() && !chromatogram_data_[i].chromatogram.isSorted())
               {
                 chromatogram_data_[i].chromatogram.sortByPosition();
               }
             }
             catch (...)
-            {++errCount;}
+            {++errCount; }
           }
           if (errCount != 0)
           {
@@ -433,22 +439,69 @@ protected:
         chromatogram_data_.clear();
       }
 
+      template <typename SpectrumType>
+      void addSpectrumMetaData_(const std::vector<MzMLHandlerHelper::BinaryData>& input_data, 
+                                const Size n, SpectrumType& spectrum) const
+        {
+
+            //add meta data
+            UInt meta_float_array_index = 0;
+            UInt meta_int_array_index = 0;
+            UInt meta_string_array_index = 0;
+            for (Size i = 0; i < input_data.size(); i++) //loop over all binary data arrays
+            {
+              if (input_data[i].meta.getName() != "m/z array" && input_data[i].meta.getName() != "intensity array") // is meta data array?
+              {
+                if (input_data[i].data_type == MzMLHandlerHelper::BinaryData::DT_FLOAT)
+                {
+                  if (n < input_data[i].size)
+                  {
+                    double value = (input_data[i].precision == MzMLHandlerHelper::BinaryData::PRE_64) ? input_data[i].floats_64[n] : input_data[i].floats_32[n];
+                    spectrum.getFloatDataArrays()[meta_float_array_index].push_back(value);
+                  }
+                  ++meta_float_array_index;
+                }
+                else if (input_data[i].data_type == MzMLHandlerHelper::BinaryData::DT_INT)
+                {
+                  if (n < input_data[i].size)
+                  {
+                    Int64 value = (input_data[i].precision == MzMLHandlerHelper::BinaryData::PRE_64) ? input_data[i].ints_64[n] : input_data[i].ints_32[n];
+                    spectrum.getIntegerDataArrays()[meta_int_array_index].push_back(value);
+                  }
+                  ++meta_int_array_index;
+                }
+                else if (input_data[i].data_type == MzMLHandlerHelper::BinaryData::DT_STRING)
+                {
+                  if (n < input_data[i].decoded_char.size())
+                  {
+                    String value = input_data[i].decoded_char[n];
+                    spectrum.getStringDataArrays()[meta_string_array_index].push_back(value);
+                  }
+                  ++meta_string_array_index;
+                }
+              }
+            }
+        }
+
       /**
           @brief Fill a single spectrum with data from input
 
           @note Do not modify any internal state variables of the class since
           this function will be executed in parallel.
 
+          Speed: this function takes about 50 % of total load time with a
+          single thread and parallelizes linearly up to at least 10 threads.
+
       */
       template <typename SpectrumType>
       void populateSpectraWithData_(std::vector<MzMLHandlerHelper::BinaryData>& input_data,
-        Size& default_arr_length, const PeakFileOptions& peak_file_options,
-        SpectrumType& spectrum)
+                                    Size& default_arr_length, const PeakFileOptions& peak_file_options,
+                                    SpectrumType& spectrum)
       {
         typedef typename SpectrumType::PeakType PeakType;
 
         //decode all base64 arrays
-        MzMLHandlerHelper::decodeBase64Arrays(input_data);
+        MzMLHandlerHelper::decodeBase64Arrays(input_data, options_.getSkipXMLChecks());
 
         //look up the precision and the index of the intensity and m/z array
         bool mz_precision_64 = true;
@@ -557,9 +610,35 @@ protected:
           }
         }
 
+        // We found that the push back approach is about 5% faster than using
+        // iterators (e.g. spectrum iterator that gets updated)
+
         //add the peaks and the meta data to the container (if they pass the restrictions)
         PeakType tmp;
         spectrum.reserve(default_arr_length);
+
+        // the most common case: no ranges, 64 / 32 precision
+        //  -> this saves about 10 % load time
+        if ( mz_precision_64 && !int_precision_64 && 
+             input_data.size() == 2 &&  
+             !peak_file_options.hasMZRange() && 
+             !peak_file_options.hasIntensityRange() 
+           )
+        {
+          std::vector< double >::iterator mz_it = input_data[mz_index].floats_64.begin();
+          std::vector< float >::iterator int_it = input_data[int_index].floats_32.begin();
+          for (Size n = 0; n < default_arr_length; n++)
+          {
+            //add peak
+            tmp.setIntensity(*int_it);
+            tmp.setMZ(*mz_it);
+            ++mz_it;
+            ++int_it;
+            spectrum.push_back(tmp);
+          }
+          return;
+        }
+
         for (Size n = 0; n < default_arr_length; n++)
         {
           double mz = mz_precision_64 ? input_data[mz_index].floats_64[n] : input_data[mz_index].floats_32[n];
@@ -572,47 +651,16 @@ protected:
             tmp.setMZ(mz);
             spectrum.push_back(tmp);
 
-            //add meta data
-            UInt meta_float_array_index = 0;
-            UInt meta_int_array_index = 0;
-            UInt meta_string_array_index = 0;
-            for (Size i = 0; i < input_data.size(); i++) //loop over all binary data arrays
+            // Only if there are more than 2 data arrays, we need to check
+            // for meta data (as there will always be an m/z and intensity
+            // array)
+            if (input_data.size() > 2) 
             {
-              if (input_data[i].meta.getName() != "m/z array" && input_data[i].meta.getName() != "intensity array") // is meta data array?
-              {
-                if (input_data[i].data_type == MzMLHandlerHelper::BinaryData::DT_FLOAT)
-                {
-                  if (n < input_data[i].size)
-                  {
-                    double value = (input_data[i].precision == MzMLHandlerHelper::BinaryData::PRE_64) ? input_data[i].floats_64[n] : input_data[i].floats_32[n];
-                    spectrum.getFloatDataArrays()[meta_float_array_index].push_back(value);
-                  }
-                  ++meta_float_array_index;
-                }
-                else if (input_data[i].data_type == MzMLHandlerHelper::BinaryData::DT_INT)
-                {
-                  if (n < input_data[i].size)
-                  {
-                    Int64 value = (input_data[i].precision == MzMLHandlerHelper::BinaryData::PRE_64) ? input_data[i].ints_64[n] : input_data[i].ints_32[n];
-                    spectrum.getIntegerDataArrays()[meta_int_array_index].push_back(value);
-                  }
-                  ++meta_int_array_index;
-                }
-                else if (input_data[i].data_type == MzMLHandlerHelper::BinaryData::DT_STRING)
-                {
-                  if (n < input_data[i].decoded_char.size())
-                  {
-                    String value = input_data[i].decoded_char[n];
-                    spectrum.getStringDataArrays()[meta_string_array_index].push_back(value);
-                  }
-                  ++meta_string_array_index;
-                }
-              }
+              addSpectrumMetaData_(input_data, n, spectrum);
             }
           }
         }
       }
-
 
       /**
           @brief Fill a single chromatogram with data from input
@@ -623,13 +671,13 @@ protected:
       */
       template <typename ChromatogramType>
       void populateChromatogramsWithData_(std::vector<MzMLHandlerHelper::BinaryData>& input_data,
-        Size& default_arr_length, const PeakFileOptions& peak_file_options,
-        ChromatogramType& inp_chromatogram)
+                                          Size& default_arr_length, const PeakFileOptions& peak_file_options,
+                                          ChromatogramType& inp_chromatogram)
       {
         typedef typename ChromatogramType::PeakType ChromatogramPeakType;
 
         //decode all base64 arrays
-        MzMLHandlerHelper::decodeBase64Arrays(input_data);
+        MzMLHandlerHelper::decodeBase64Arrays(input_data, options_.getSkipXMLChecks());
 
         //look up the precision and the index of the intensity and m/z array
         bool int_precision_64 = true;
@@ -798,7 +846,7 @@ protected:
         }
         else if (array_type == "intensity")
         {
-          cv_term_type = "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000515\" name=\"intensity array\" unitAccession=\"MS:1000131\" unitName=\"number of counts\" unitCvRef=\"MS\"/>\n";
+          cv_term_type = "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000515\" name=\"intensity array\" unitAccession=\"MS:1000131\" unitName=\"number of detector counts\" unitCvRef=\"MS\"/>\n";
           compression_term = MzMLHandlerHelper::getCompressionTerm_(pf_options_, pf_options_.getNumpressConfigurationIntensity(), true);
           compression_term_no_np = MzMLHandlerHelper::getCompressionTerm_(pf_options_, pf_options_.getNumpressConfigurationIntensity(), false);
           np_config = pf_options_.getNumpressConfigurationIntensity();
@@ -845,7 +893,7 @@ protected:
         os << "\t\t\t\t\t</binaryDataArray>\n";
       }
 
-      void writeHeader_(std::ostream& os, const MapType& exp, std::vector<std::vector<DataProcessing> > & dps, Internal::MzMLValidator& validator);
+      void writeHeader_(std::ostream& os, const MapType& exp, std::vector<std::vector< ConstDataProcessingPtr > >& dps, Internal::MzMLValidator& validator);
 
       /// map pointer for reading
       MapType* exp_;
@@ -880,7 +928,7 @@ protected:
       /// The data processing list: id => Instrument
       Map<String, Instrument> instruments_;
       /// The data processing list: id => Instrument
-      Map<String, std::vector<DataProcessing> > processing_;
+      Map<String, std::vector< DataProcessingPtr > > processing_;
       /// id of the default data processing (used when no processing is defined)
       String default_processing_;
 
@@ -900,7 +948,7 @@ protected:
       };
 
       /// Vector of spectrum data stored for later parallel processing
-      std::vector< SpectrumData > spectrum_data_;
+      std::vector<SpectrumData> spectrum_data_;
 
       /**
           @brief Data necessary to generate a single chromatogram
@@ -917,13 +965,13 @@ protected:
       };
 
       /// Vector of chromatogram data stored for later parallel processing
-      std::vector< ChromatogramData > chromatogram_data_;
+      std::vector<ChromatogramData> chromatogram_data_;
 
       //@}
       /**@name temporary data structures to hold written data */
       //@{
-      std::vector< std::pair<std::string, long> > spectra_offsets;
-      std::vector< std::pair<std::string, long> > chromatograms_offsets;
+      std::vector<std::pair<std::string, long> > spectra_offsets;
+      std::vector<std::pair<std::string, long> > chromatograms_offsets;
       //@}
 
       /// Decoder/Encoder for Base64-data in MzML
@@ -981,7 +1029,7 @@ protected:
       void writeSourceFile_(std::ostream& os, const String& id, const SourceFile& software, Internal::MzMLValidator& validator);
 
       /// Helper method that writes a data processing list
-      void writeDataProcessing_(std::ostream& os, const String& id, const std::vector<DataProcessing>& dps, Internal::MzMLValidator& validator);
+      void writeDataProcessing_(std::ostream& os, const String& id, const std::vector< ConstDataProcessingPtr >& dps, Internal::MzMLValidator& validator);
 
       /// Helper method that write precursor information from spectra and chromatograms
       void writePrecursor_(std::ostream& os, const Precursor& precursor, Internal::MzMLValidator& validator);
@@ -1073,6 +1121,7 @@ protected:
       //do nothing until a new spectrum is reached
       if (tag != "spectrum" && skip_spectrum_)
         return;
+
       if (tag != "chromatogram" && skip_chromatogram_)
         return;
 
@@ -1201,8 +1250,49 @@ protected:
       else if (tag == "sourceFile")
       {
         current_id_ = attributeAsString_(attributes, s_id);
-        source_files_[current_id_].setNameOfFile(attributeAsString_(attributes, s_name));
-        source_files_[current_id_].setPathToFile(attributeAsString_(attributes, s_location));
+        // Name of the source file, without reference to location (either URI or local path). e.g. "control.mzML"
+        String name_of_file = attributeAsString_(attributes, s_name); 
+
+        //URI-formatted location where the file was retrieved.
+        String path_to_file = attributeAsString_(attributes, s_location);
+
+        // mzML files often deviate from the specification by storing e.g. the full path in the name attribute etc.
+        // error: whole path is stored in file name. fix: split into path and file name
+        if (path_to_file.empty() && !name_of_file.empty())
+        {
+          path_to_file = File::path(name_of_file);
+          name_of_file = File::basename(name_of_file);
+          if (path_to_file == ".") path_to_file = "file://./";
+        }
+
+        // format URI prefix as in mzML spec.
+        if (path_to_file.hasPrefix("File://")) path_to_file.substitute("File://", "file://");
+        if (path_to_file.hasPrefix("FILE://")) path_to_file.substitute("FILE://", "file://");
+        if (path_to_file.hasPrefix("file:///.")) path_to_file.substitute("file:///.", "file://./");
+
+        bool is_relative_path = path_to_file.hasPrefix("file://./") || path_to_file.hasPrefix("file://../");
+
+        // ill formed absolute or relative path
+        if (!is_relative_path && path_to_file.hasPrefix("file://") && !path_to_file.hasPrefix("file:///"))
+        {
+          warning(LOAD, "Ill formed absolute or relative sourceFile path: " + path_to_file);
+        }
+
+        // if possible convert relative path to absolute path
+        if (is_relative_path && File::isDirectory(path_to_file))
+        {
+          String normal_path = String(path_to_file).substitute("file://", ""); // remove URI prefix
+          path_to_file = String("file://") + File::absolutePath(normal_path); // on linux this e.g. file:///home... on win: file://C:/...
+        }
+
+        // absolute path to the root: remove additional / otherwise we will get file://// on concatenation
+        if (!is_relative_path && path_to_file == "file:///")
+        {
+          path_to_file = "file://";
+        }
+
+        source_files_[current_id_].setNameOfFile(name_of_file);
+        source_files_[current_id_].setPathToFile(path_to_file);
       }
       else if (tag == "referenceableParamGroupRef")
       {
@@ -1329,17 +1419,17 @@ protected:
       }
       else if (tag == "processingMethod")
       {
-        DataProcessing dp;
+        DataProcessingPtr dp(new DataProcessing);
         // See ticket 452: Do NOT remove  this try/catch block until foreign
         // software (e.g. ProteoWizard msconvert.exe) produces valid mzML.
         try
         {
-          dp.setSoftware(software_[attributeAsString_(attributes, s_software_ref)]);
+          dp->setSoftware(software_[attributeAsString_(attributes, s_software_ref)]);
         }
         catch (Exception::ParseError& /*e*/)
         {
           LOG_ERROR << "Warning: Parsing error, \"processingMethod\" is missing the required attribute \"softwareRef\".\n" <<
-            "The software tool which generated this mzML should be fixed. Please notify the maintainers." << std::endl;
+          "The software tool which generated this mzML should be fixed. Please notify the maintainers." << std::endl;
         }
         processing_[current_id_].push_back(dp);
         //The order of processing methods is currently ignored
@@ -1494,7 +1584,7 @@ protected:
 
         skip_spectrum_ = false;
         rt_set_ = false;
-        if (options_.getSizeOnly()) {skip_spectrum_ = true;}
+        if (options_.getSizeOnly()) {skip_spectrum_ = true; }
         logger_.setProgress(++scan_count);
         data_.clear();
         default_array_length_ = 0;
@@ -1519,7 +1609,7 @@ protected:
         }
 
         skip_chromatogram_ = false;
-        if (options_.getSizeOnly()) {skip_chromatogram_ = true;}
+        if (options_.getSizeOnly()) {skip_chromatogram_ = true; }
         logger_.setProgress(++chromatogram_count);
         data_.clear();
         default_array_length_ = 0;
@@ -2266,7 +2356,7 @@ protected:
         else if (accession == "MS:1000803") //analyzer scan offset
         {
           //No member => meta data
-          spec_.setMetaValue("analyzer scan offset", termValue);             // used in SpectraIdentificationViewWidget()
+          spec_.setMetaValue("analyzer scan offset", termValue); // used in SpectraIdentificationViewWidget()
         }
         else if (accession == "MS:1000616") //preset scan configuration
         {
@@ -2311,7 +2401,10 @@ protected:
           spec_.setMetaValue("scan law", String("quadratic"));
         }
         else
-          warning(LOAD, String("Unhandled cvParam '") + accession + "' in tag '" + parent_tag + "'.");
+        {
+          //warning(LOAD, String("Unhandled cvParam '") + accession + "' in tag '" + parent_tag + "'."); //of course just pops up with debug flag set ...
+          spec_.getAcquisitionInfo().back().setMetaValue(accession, termValue);
+        }
       }
       //------------------------- contact ----------------------------
       else if (parent_tag == "contact")
@@ -3109,93 +3202,93 @@ protected:
         //data processing parameter
         if (accession == "MS:1000629") //low intensity threshold (ion count)
         {
-          processing_[current_id_].back().setMetaValue("low_intensity_threshold", termValue);
+          processing_[current_id_].back()->setMetaValue("low_intensity_threshold", termValue);
         }
         else if (accession == "MS:1000631") //high intensity threshold (ion count)
         {
-          processing_[current_id_].back().setMetaValue("high_intensity_threshold", termValue);
+          processing_[current_id_].back()->setMetaValue("high_intensity_threshold", termValue);
         }
         else if (accession == "MS:1000787") //inclusive low intensity threshold
         {
-          processing_[current_id_].back().setMetaValue("inclusive_low_intensity_threshold", termValue);
+          processing_[current_id_].back()->setMetaValue("inclusive_low_intensity_threshold", termValue);
         }
         else if (accession == "MS:1000788") //inclusive high intensity threshold
         {
-          processing_[current_id_].back().setMetaValue("inclusive_high_intensity_threshold", termValue);
+          processing_[current_id_].back()->setMetaValue("inclusive_high_intensity_threshold", termValue);
         }
         else if (accession == "MS:1000747") //completion time
         {
-          processing_[current_id_].back().setCompletionTime(asDateTime_(value));
+          processing_[current_id_].back()->setCompletionTime(asDateTime_(value));
         }
         //file format conversion
         else if (accession == "MS:1000530") //file format conversion
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::FORMAT_CONVERSION);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::FORMAT_CONVERSION);
         }
         else if (accession == "MS:1000544") //Conversion to mzML
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::CONVERSION_MZML);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::CONVERSION_MZML);
         }
         else if (accession == "MS:1000545") //Conversion to mzXML
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::CONVERSION_MZXML);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::CONVERSION_MZXML);
         }
         else if (accession == "MS:1000546") //Conversion to mzData
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::CONVERSION_MZDATA);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::CONVERSION_MZDATA);
         }
         else if (accession == "MS:1000741") //Conversion to DTA
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::CONVERSION_DTA);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::CONVERSION_DTA);
         }
         //data processing action
         else if (accession == "MS:1000543") //data processing action
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::DATA_PROCESSING);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::DATA_PROCESSING);
         }
         else if (accession == "MS:1000033") //deisotoping
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::DEISOTOPING);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::DEISOTOPING);
         }
         else if (accession == "MS:1000034") //charge deconvolution
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::CHARGE_DECONVOLUTION);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::CHARGE_DECONVOLUTION);
         }
         else if (accession == "MS:1000035" || cv_.isChildOf(accession, "MS:1000035")) //peak picking (or child terms, we make no difference)
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::PEAK_PICKING);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::PEAK_PICKING);
         }
         else if (accession == "MS:1000592" || cv_.isChildOf(accession, "MS:1000592")) //smoothing (or child terms, we make no difference)
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::SMOOTHING);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::SMOOTHING);
         }
         else if (accession == "MS:1000778" || cv_.isChildOf(accession, "MS:1000778")) //charge state calculation (or child terms, we make no difference)
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::CHARGE_CALCULATION);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::CHARGE_CALCULATION);
         }
         else if (accession == "MS:1000780" || cv_.isChildOf(accession, "MS:1000780")) //precursor recalculation (or child terms, we make no difference)
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::PRECURSOR_RECALCULATION);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::PRECURSOR_RECALCULATION);
         }
         else if (accession == "MS:1000593") //baseline reduction
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::BASELINE_REDUCTION);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::BASELINE_REDUCTION);
         }
         else if (accession == "MS:1000745") //retention time alignment
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::ALIGNMENT);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::ALIGNMENT);
         }
         else if (accession == "MS:1001484") //intensity normalization
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::NORMALIZATION);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::NORMALIZATION);
         }
         else if (accession == "MS:1001485") //m/z calibration
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::CALIBRATION);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::CALIBRATION);
         }
         else if (accession == "MS:1001486" || cv_.isChildOf(accession, "MS:1001486")) //data filtering (or child terms, we make no difference)
         {
-          processing_[current_id_].back().getProcessingActions().insert(DataProcessing::FILTERING);
+          processing_[current_id_].back()->getProcessingActions().insert(DataProcessing::FILTERING);
         }
         else
           warning(LOAD, String("Unhandled cvParam '") + accession + "' in tag '" + parent_tag + "'.");
@@ -3429,7 +3522,7 @@ protected:
       }
       else if (parent_tag == "processingMethod")
       {
-        processing_[current_id_].back().setMetaValue(name, data_value);
+        processing_[current_id_].back()->setMetaValue(name, data_value);
       }
       else if (parent_tag == "fileContent")
       {
@@ -3569,6 +3662,14 @@ protected:
     {
       os << "\t\t<software id=\"" << id << "\" version=\"" << software.getVersion() << "\" >\n";
       ControlledVocabulary::CVTerm so_term = getChildWithName_("MS:1000531", software.getName());
+      if (so_term.id == "")
+      {
+        so_term = getChildWithName_("MS:1000531", software.getName() + " software"); //act of desperation to find the right cv and keep compatible with older cv mzmls
+      }
+      if (so_term.id == "")
+      {
+        so_term = getChildWithName_("MS:1000531", "TOPP " + software.getName()); //act of desperation to find the right cv and keep compatible with older cv mzmls
+      }
       if (so_term.id == "MS:1000799")
       {
         os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000799\" name=\"custom unreleased software tool\" value=\"\" />\n";
@@ -3604,13 +3705,17 @@ protected:
       }
       //file type
       ControlledVocabulary::CVTerm ft_term = getChildWithName_("MS:1000560", source_file.getFileType());
+      if (ft_term.id.empty() && source_file.getFileType().hasSuffix("file"))
+      {
+        ft_term = getChildWithName_("MS:1000560", source_file.getFileType().chop(4) + "format");   // this is born out of desperation that sourcefile has a string interface for its filetype and not the enum, which could have been easily manipulated to the updated cv
+      }
       if (ft_term.id != "")
       {
         os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"" << ft_term.id << "\" name=\"" << ft_term.name << "\" />\n";
       }
       else //FORCED
       {
-        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000564\" name=\"PSI mzData file\" />\n";
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000564\" name=\"PSI mzData format\" />\n";
       }
       //native ID format
       ControlledVocabulary::CVTerm id_term = getChildWithName_("MS:1000767", source_file.getNativeIDType());
@@ -3627,7 +3732,7 @@ protected:
     }
 
     template <typename MapType>
-    void MzMLHandler<MapType>::writeDataProcessing_(std::ostream& os, const String& id, const std::vector<DataProcessing>& dps, Internal::MzMLValidator& validator)
+    void MzMLHandler<MapType>::writeDataProcessing_(std::ostream& os, const String& id, const std::vector< ConstDataProcessingPtr >& dps, Internal::MzMLValidator& validator)
     {
       os << "\t\t<dataProcessing id=\"" << id << "\">\n";
 
@@ -3645,88 +3750,88 @@ protected:
       {
         //data processing action
         os << "\t\t\t<processingMethod order=\"0\" softwareRef=\"so_" << id << "_pm_" << i << "\">\n";
-        if (dps[i].getProcessingActions().count(DataProcessing::DATA_PROCESSING) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::DATA_PROCESSING) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000543\" name=\"data processing action\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::CHARGE_DECONVOLUTION) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::CHARGE_DECONVOLUTION) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000034\" name=\"charge deconvolution\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::DEISOTOPING) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::DEISOTOPING) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000033\" name=\"deisotoping\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::SMOOTHING) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::SMOOTHING) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000592\" name=\"smoothing\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::CHARGE_CALCULATION) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::CHARGE_CALCULATION) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000778\" name=\"charge state calculation\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::PRECURSOR_RECALCULATION) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::PRECURSOR_RECALCULATION) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000780\" name=\"precursor recalculation\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::BASELINE_REDUCTION) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::BASELINE_REDUCTION) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000593\" name=\"baseline reduction\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::PEAK_PICKING) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::PEAK_PICKING) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000035\" name=\"peak picking\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::ALIGNMENT) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::ALIGNMENT) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000745\" name=\"retention time alignment\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::CALIBRATION) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::CALIBRATION) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001485\" name=\"m/z calibration\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::NORMALIZATION) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::NORMALIZATION) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001484\" name=\"intensity normalization\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::FILTERING) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::FILTERING) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001486\" name=\"data filtering\" />\n";
           written = true;
         }
         //file format conversion
-        if (dps[i].getProcessingActions().count(DataProcessing::FORMAT_CONVERSION) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::FORMAT_CONVERSION) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000530\" name=\"file format conversion\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::CONVERSION_MZDATA) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::CONVERSION_MZDATA) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000546\" name=\"Conversion to mzData\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::CONVERSION_MZML) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::CONVERSION_MZML) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000544\" name=\"Conversion to mzML\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::CONVERSION_MZXML) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::CONVERSION_MZXML) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000545\" name=\"Conversion to mzXML\" />\n";
           written = true;
         }
-        if (dps[i].getProcessingActions().count(DataProcessing::CONVERSION_DTA) == 1)
+        if (dps[i]->getProcessingActions().count(DataProcessing::CONVERSION_DTA) == 1)
         {
           os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000741\" name=\"Conversion to dta\" />\n";
           written = true;
@@ -3737,12 +3842,12 @@ protected:
         }
 
         //data processing attribute
-        if (dps[i].getCompletionTime().isValid())
+        if (dps[i]->getCompletionTime().isValid())
         {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000747\" name=\"completion time\" value=\"" << dps[i].getCompletionTime().toString("yyyy-MM-dd+hh:mm").toStdString() << "\" />\n";
+          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000747\" name=\"completion time\" value=\"" << dps[i]->getCompletionTime().toString("yyyy-MM-dd+hh:mm").toStdString() << "\" />\n";
         }
 
-        writeUserParam_(os, dps[i], 4, "/mzML/dataProcessingList/dataProcessing/processingMethod/cvParam/@accession", validator);
+        writeUserParam_(os, *(dps[i].get()), 4, "/mzML/dataProcessingList/dataProcessing/processingMethod/cvParam/@accession", validator);
         os << "\t\t\t</processingMethod>\n";
       }
 
@@ -3874,7 +3979,7 @@ protected:
       int progress = 0;
       Internal::MzMLValidator validator(mapping_, cv_);
 
-      std::vector<std::vector<DataProcessing> > dps;
+      std::vector<std::vector< ConstDataProcessingPtr > > dps;
       //--------------------------------------------------------------------------------------------
       //header
       //--------------------------------------------------------------------------------------------
@@ -3942,7 +4047,7 @@ protected:
 
     template <typename MapType>
     void MzMLHandler<MapType>::writeHeader_(std::ostream& os, const MapType& exp,
-            std::vector<std::vector<DataProcessing> > & dps, Internal::MzMLValidator& validator)
+                                            std::vector<std::vector< ConstDataProcessingPtr > >& dps, Internal::MzMLValidator& validator)
     {
       os << "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n";
 
@@ -4051,13 +4156,13 @@ protected:
         os << "\t\t<sourceFileList count=\"" << exp.getSourceFiles().size() + sf_sp_count << "\">\n";
 
         //write source file of run
-        for (Size i=0; i<exp.getSourceFiles().size(); ++i)
+        for (Size i = 0; i < exp.getSourceFiles().size(); ++i)
         {
           writeSourceFile_(os, String("sf_ru_") + String(i), exp.getSourceFiles()[i], validator);
         }
 
         // write source files of spectra
-        if (sf_sp_count > 0 )
+        if (sf_sp_count > 0)
         {
           const SourceFile sf_default;
           for (Size i = 0; i < exp.size(); ++i)
@@ -4080,7 +4185,7 @@ protected:
         const ContactPerson& cp = exp.getContacts()[i];
         os << "\t\t<contact>\n";
         os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000586\" name=\"contact name\" value=\"" << writeXMLEscape(cp.getLastName()) << ", " << writeXMLEscape(cp.getFirstName()) << "\" />\n";
-        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000590\" name=\"contact organization\" value=\"" << writeXMLEscape(cp.getInstitution()) << "\" />\n";
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000590\" name=\"contact affiliation\" value=\"" << writeXMLEscape(cp.getInstitution()) << "\" />\n";
 
         if (cp.getAddress() != "")
         {
@@ -4149,14 +4254,25 @@ protected:
       os << "\t</sampleList>\n";
 
       //--------------------------------------------------------------------------------------------
-      // software
+      // Software
       //--------------------------------------------------------------------------------------------
 
-      // create a list of all different data processings
-      Size num_software(2); // instrument software is always written
+      // instrument software and fallback software is always written (see below)
+      Size num_software(2);
+
+      // Create a list of all different data processings: check if the
+      // DataProcessing of the current spectra/chromatogram is already present
+      // and if not, append it to the dps vector
       for (Size s = 0; s < exp.size(); ++s)
       {
-        if (find(dps.begin(), dps.end(), exp[s].getDataProcessing()) == dps.end())
+        bool already_present = false;
+        for (Size j = 0; j < dps.size(); j++)
+        {
+          already_present = OpenMS::Helpers::cmpPtrContainer(
+              exp[s].getDataProcessing(), dps[j]);
+          if (already_present) break;
+        }
+        if (!already_present)
         {
           dps.push_back(exp[s].getDataProcessing());
           num_software += exp[s].getDataProcessing().size();
@@ -4164,7 +4280,14 @@ protected:
       }
       for (Size s = 0; s < exp.getChromatograms().size(); ++s)
       {
-        if (find(dps.begin(), dps.end(), exp.getChromatograms()[s].getDataProcessing()) == dps.end())
+        bool already_present = false;
+        for (Size j = 0; j < dps.size(); j++)
+        {
+          already_present = OpenMS::Helpers::cmpPtrContainer(
+              exp.getChromatograms()[s].getDataProcessing(), dps[j]);
+          if (already_present) break;
+        }
+        if (!already_present)
         {
           dps.push_back(exp.getChromatograms()[s].getDataProcessing());
           num_software += exp.getChromatograms()[s].getDataProcessing().size();
@@ -4186,10 +4309,11 @@ protected:
       }
 
       os << "\t<softwareList count=\"" << num_software + num_bi_software << "\">\n";
-      //write instrument software
+
+      // write instrument software
       writeSoftware_(os, "so_in_0", exp.getInstrument().getSoftware(), validator);
 
-      //write fallback software
+      // write fallback software
       writeSoftware_(os, "so_default", Software(), validator);
 
       // write the software of the dps
@@ -4197,7 +4321,7 @@ protected:
       {
         for (Size s2 = 0; s2 != dps[s1].size(); ++s2)
         {
-          writeSoftware_(os, String("so_dp_sp_") + s1 + "_pm_" + s2, dps[s1][s2].getSoftware(), validator);
+          writeSoftware_(os, String("so_dp_sp_") + s1 + "_pm_" + s2, dps[s1][s2]->getSoftware(), validator);
         }
       }
 
@@ -4208,7 +4332,8 @@ protected:
         {
           for (Size i = 0; i < exp[s].getFloatDataArrays()[m].getDataProcessing().size(); ++i)
           {
-            writeSoftware_(os, String("so_dp_sp_") + s + "_bi_" + m + "_pm_" + i, exp[s].getFloatDataArrays()[m].getDataProcessing()[i].getSoftware(), validator);
+            writeSoftware_(os, String("so_dp_sp_") + s + "_bi_" + m + "_pm_" + i, 
+                exp[s].getFloatDataArrays()[m].getDataProcessing()[i]->getSoftware(), validator);
           }
         }
       }
@@ -4803,7 +4928,7 @@ protected:
       //default (first spectrum data or fictional data)
       if (exp.empty())
       {
-        std::vector<DataProcessing> dummy;
+        std::vector< ConstDataProcessingPtr > dummy;
         writeDataProcessing_(os, "dp_sp_0", dummy, validator);
       }
 
@@ -4817,7 +4942,8 @@ protected:
       {
         for (Size m = 0; m < exp[s].getFloatDataArrays().size(); ++m)
         {
-          writeDataProcessing_(os, String("dp_sp_") + s + "_bi_" + m, exp[s].getFloatDataArrays()[m].getDataProcessing(), validator);
+          writeDataProcessing_(os, String("dp_sp_") + s + "_bi_" + m, 
+              exp[s].getFloatDataArrays()[m].getDataProcessing(), validator);
         }
       }
 
@@ -4852,405 +4978,254 @@ protected:
 
     template <typename MapType>
     void MzMLHandler<MapType>::writeSpectrum_(std::ostream& os,
-            const SpectrumType& spec, Size s,
-            Internal::MzMLValidator& validator, bool renew_native_ids,
-            std::vector<std::vector<DataProcessing> > & dps)
+                                              const SpectrumType& spec, Size s,
+                                              Internal::MzMLValidator& validator, bool renew_native_ids,
+                                              std::vector<std::vector< ConstDataProcessingPtr > >& dps)
     {
-        //native id
-        String native_id = spec.getNativeID();
-        if (renew_native_ids)
-          native_id = String("spectrum=") + s;
+      //native id
+      String native_id = spec.getNativeID();
+      if (renew_native_ids)
+      {
+        native_id = String("spectrum=") + s;
+      }
 
-        long offset = os.tellp();
-        spectra_offsets.push_back(make_pair(native_id, offset+3));
+      long offset = os.tellp();
+      spectra_offsets.push_back(make_pair(native_id, offset + 3));
 
-        // IMPORTANT make sure the offset (above) corresponds to the start of the <spectrum tag
-        os << "\t\t\t<spectrum id=\"" << writeXMLEscape(native_id) << "\" index=\"" << s << "\" defaultArrayLength=\"" << spec.size() << "\"";
-        if (spec.getSourceFile() != SourceFile())
+      // IMPORTANT make sure the offset (above) corresponds to the start of the <spectrum tag
+      os << "\t\t\t<spectrum id=\"" << writeXMLEscape(native_id) << "\" index=\"" << s << "\" defaultArrayLength=\"" << spec.size() << "\"";
+      if (spec.getSourceFile() != SourceFile())
+      {
+        os << " sourceFileRef=\"sf_sp_" << s << "\"";
+      }
+      //the data processing info of the first spectrum is the default
+      //if (s==0 || spec.getDataProcessing()!=exp[0].getDataProcessing())
+      if (s == 0 || spec.getDataProcessing() != dps[0])
+      {
+        Size dp_ref_num = s;
+        if (s != 0)
         {
-          os << " sourceFileRef=\"sf_sp_" << s << "\"";
-        }
-        //the data processing info of the first spectrum is the default
-        //if (s==0 || spec.getDataProcessing()!=exp[0].getDataProcessing())
-        if (s == 0 || spec.getDataProcessing() != dps[0])
-        {
-          Size dp_ref_num = s;
-          if (s != 0)
+          for (Size i = 0; i < dps.size(); ++i)
           {
-            for (Size i = 0; i < dps.size(); ++i)
+            if (spec.getDataProcessing() == dps[i])
             {
-              if (spec.getDataProcessing() == dps[i])
-              {
-                dp_ref_num = i;
-                break;
-              }
+              dp_ref_num = i;
+              break;
             }
           }
-          os << " dataProcessingRef=\"dp_sp_" << dp_ref_num << "\"";
         }
+        os << " dataProcessingRef=\"dp_sp_" << dp_ref_num << "\"";
+      }
+      os << ">\n";
+
+      //spectrum representation
+      if (spec.getType() == SpectrumSettings::PEAKS)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000127\" name=\"centroid spectrum\" />\n";
+      }
+      else if (spec.getType() == SpectrumSettings::RAWDATA)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000128\" name=\"profile spectrum\" />\n";
+      }
+      else
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000525\" name=\"spectrum representation\" />\n";
+      }
+
+      //spectrum attributes
+      if (spec.getMSLevel() != 0)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000511\" name=\"ms level\" value=\"" << spec.getMSLevel() << "\" />\n";
+      }
+      if (spec.getInstrumentSettings().getZoomScan())
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000497\" name=\"zoom scan\" />\n";
+      }
+
+      //spectrum type
+      if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::MASSSPECTRUM)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000294\" name=\"mass spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::MS1SPECTRUM)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000579\" name=\"MS1 spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::MSNSPECTRUM)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000580\" name=\"MSn spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::SIM)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000582\" name=\"SIM spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::SRM)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000583\" name=\"SRM spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::CRM)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000581\" name=\"CRM spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::PRECURSOR)
+      {
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000341\" name=\"precursor ion spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::CNG)
+      {
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000325\" name=\"constant neutral gain spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::CNL)
+      {
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000326\" name=\"constant neutral loss spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::EMR)
+      {
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000804\" name=\"electromagnetic radiation spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::EMISSION)
+      {
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000805\" name=\"emission spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::ABSORBTION)
+      {
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000806\" name=\"absorption spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::EMC)
+      {
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000789\" name=\"enhanced multiply charged spectrum\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::TDF)
+      {
+        os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000789\" name=\"time-delayed fragmentation spectrum\" />\n";
+      }
+      else   //FORCED
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000294\" name=\"mass spectrum\" />\n";
+      }
+
+      //scan polarity
+      if (spec.getInstrumentSettings().getPolarity() == IonSource::NEGATIVE)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000129\" name=\"negative scan\" />\n";
+      }
+      else if (spec.getInstrumentSettings().getPolarity() == IonSource::POSITIVE)
+      {
+        os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000130\" name=\"positive scan\" />\n";
+      }
+
+      writeUserParam_(os, spec, 4, "/mzML/run/spectrumList/spectrum/cvParam/@accession", validator);
+      //--------------------------------------------------------------------------------------------
+      //scan list
+      //--------------------------------------------------------------------------------------------
+      os << "\t\t\t\t<scanList count=\"" << (std::max)((Size)1, spec.getAcquisitionInfo().size()) << "\">\n";
+      ControlledVocabulary::CVTerm ai_term = getChildWithName_("MS:1000570", spec.getAcquisitionInfo().getMethodOfCombination());
+      if (ai_term.id != "")
+      {
+        os << "\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"" << ai_term.id << "\" name=\"" << ai_term.name << "\" />\n";
+      }
+      else
+      {
+        os << "\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000795\" name=\"no combination\" />\n";
+      }
+      writeUserParam_(os, spec.getAcquisitionInfo(), 5, "/mzML/run/spectrumList/spectrum/scanList/cvParam/@accession", validator);
+
+      //--------------------------------------------------------------------------------------------
+      //scan
+      //--------------------------------------------------------------------------------------------
+      for (Size j = 0; j < spec.getAcquisitionInfo().size(); ++j)
+      {
+        const Acquisition& ac = spec.getAcquisitionInfo()[j];
+        os << "\t\t\t\t\t<scan ";
+        if (ac.getIdentifier() != "")
+          os << "externalSpectrumID=\"" << ac.getIdentifier() << "\"";
         os << ">\n";
-
-        //spectrum representation
-        if (spec.getType() == SpectrumSettings::PEAKS)
+        if (j == 0)
         {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000127\" name=\"centroid spectrum\" />\n";
-        }
-        else if (spec.getType() == SpectrumSettings::RAWDATA)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000128\" name=\"profile spectrum\" />\n";
-        }
-        else
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000525\" name=\"spectrum representation\" />\n";
-        }
-
-        //spectrum attributes
-        if (spec.getMSLevel() != 0)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000511\" name=\"ms level\" value=\"" << spec.getMSLevel() << "\" />\n";
-        }
-        if (spec.getInstrumentSettings().getZoomScan())
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000497\" name=\"zoom scan\" />\n";
-        }
-
-        //spectrum type
-        if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::MASSSPECTRUM)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000294\" name=\"mass spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::MS1SPECTRUM)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000579\" name=\"MS1 spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::MSNSPECTRUM)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000580\" name=\"MSn spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::SIM)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000582\" name=\"SIM spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::SRM)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000583\" name=\"SRM spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::CRM)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000581\" name=\"CRM spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::PRECURSOR)
-        {
-          os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000341\" name=\"precursor ion spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::CNG)
-        {
-          os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000325\" name=\"constant neutral gain spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::CNL)
-        {
-          os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000326\" name=\"constant neutral loss spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::EMR)
-        {
-          os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000804\" name=\"electromagnetic radiation spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::EMISSION)
-        {
-          os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000805\" name=\"emission spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::ABSORBTION)
-        {
-          os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000806\" name=\"absorption spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::EMC)
-        {
-          os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000789\" name=\"enhanced multiply charged spectrum\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getScanMode() == InstrumentSettings::TDF)
-        {
-          os << "\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000789\" name=\"time-delayed fragmentation spectrum\" />\n";
-        }
-        else //FORCED
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000294\" name=\"mass spectrum\" />\n";
-        }
-
-        //scan polarity
-        if (spec.getInstrumentSettings().getPolarity() == IonSource::NEGATIVE)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000129\" name=\"negative scan\" />\n";
-        }
-        else if (spec.getInstrumentSettings().getPolarity() == IonSource::POSITIVE)
-        {
-          os << "\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000130\" name=\"positive scan\" />\n";
-        }
-
-        writeUserParam_(os, spec, 4, "/mzML/run/spectrumList/spectrum/cvParam/@accession", validator);
-        //--------------------------------------------------------------------------------------------
-        //scan list
-        //--------------------------------------------------------------------------------------------
-        os << "\t\t\t\t<scanList count=\"" << (std::max)((Size)1, spec.getAcquisitionInfo().size()) << "\">\n";
-        ControlledVocabulary::CVTerm ai_term = getChildWithName_("MS:1000570", spec.getAcquisitionInfo().getMethodOfCombination());
-        if (ai_term.id != "")
-        {
-          os << "\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"" << ai_term.id << "\" name=\"" << ai_term.name << "\" />\n";
-        }
-        else
-        {
-          os << "\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000795\" name=\"no combination\" />\n";
-        }
-        writeUserParam_(os, spec.getAcquisitionInfo(), 5, "/mzML/run/spectrumList/spectrum/scanList/cvParam/@accession", validator);
-
-        //--------------------------------------------------------------------------------------------
-        //scan
-        //--------------------------------------------------------------------------------------------
-        for (Size j = 0; j < spec.getAcquisitionInfo().size(); ++j)
-        {
-          const Acquisition& ac = spec.getAcquisitionInfo()[j];
-          os << "\t\t\t\t\t<scan ";
-          if (ac.getIdentifier() != "")
-            os << "externalSpectrumID=\"" << ac.getIdentifier() << "\"";
-          os << ">\n";
-          if (j == 0)
-          {
-            os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000016\" name=\"scan start time\" value=\"" << spec.getRT() << "\" unitAccession=\"UO:0000010\" unitName=\"second\" unitCvRef=\"UO\" />\n";
-          }
-          writeUserParam_(os, ac, 6, "/mzML/run/spectrumList/spectrum/scanList/scan/cvParam/@accession", validator);
-          //scan windows
-          if (j == 0 && spec.getInstrumentSettings().getScanWindows().size() != 0)
-          {
-            os << "\t\t\t\t\t\t<scanWindowList count=\"" << spec.getInstrumentSettings().getScanWindows().size() << "\">\n";
-            for (Size k = 0; k < spec.getInstrumentSettings().getScanWindows().size(); ++k)
-            {
-              os << "\t\t\t\t\t\t\t<scanWindow>\n";
-              os << "\t\t\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000501\" name=\"scan window lower limit\" value=\"" << spec.getInstrumentSettings().getScanWindows()[k].begin << "\" unitAccession=\"MS:1000040\" unitName=\"m/z\" unitCvRef=\"MS\" />\n";
-              os << "\t\t\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000500\" name=\"scan window upper limit\" value=\"" << spec.getInstrumentSettings().getScanWindows()[k].end << "\" unitAccession=\"MS:1000040\" unitName=\"m/z\" unitCvRef=\"MS\" />\n";
-              writeUserParam_(os, spec.getInstrumentSettings().getScanWindows()[k], 8, "/mzML/run/spectrumList/spectrum/scanList/scan/scanWindowList/scanWindow/cvParam/@accession", validator);
-              os << "\t\t\t\t\t\t\t</scanWindow>\n";
-            }
-            os << "\t\t\t\t\t\t</scanWindowList>\n";
-          }
-          os << "\t\t\t\t\t</scan>\n";
-        }
-        //fallback if we have no acquisition information (a dummy scan is created for RT and so on)
-        if (spec.getAcquisitionInfo().empty())
-        {
-          os << "\t\t\t\t\t<scan>\n";
           os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000016\" name=\"scan start time\" value=\"" << spec.getRT() << "\" unitAccession=\"UO:0000010\" unitName=\"second\" unitCvRef=\"UO\" />\n";
-          //scan windows
-          if (spec.getInstrumentSettings().getScanWindows().size() != 0)
+        }
+        writeUserParam_(os, ac, 6, "/mzML/run/spectrumList/spectrum/scanList/scan/cvParam/@accession", validator);
+        //scan windows
+        if (j == 0 && spec.getInstrumentSettings().getScanWindows().size() != 0)
+        {
+          os << "\t\t\t\t\t\t<scanWindowList count=\"" << spec.getInstrumentSettings().getScanWindows().size() << "\">\n";
+          for (Size k = 0; k < spec.getInstrumentSettings().getScanWindows().size(); ++k)
           {
-            os << "\t\t\t\t\t\t<scanWindowList count=\"" << spec.getInstrumentSettings().getScanWindows().size() << "\">\n";
-            for (Size j = 0; j < spec.getInstrumentSettings().getScanWindows().size(); ++j)
-            {
-              os << "\t\t\t\t\t\t\t<scanWindow>\n";
-              os << "\t\t\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000501\" name=\"scan window lower limit\" value=\"" << spec.getInstrumentSettings().getScanWindows()[j].begin << "\" unitAccession=\"MS:1000040\" unitName=\"m/z\" unitCvRef=\"MS\" />\n";
-              os << "\t\t\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000500\" name=\"scan window upper limit\" value=\"" << spec.getInstrumentSettings().getScanWindows()[j].end << "\" unitAccession=\"MS:1000040\" unitName=\"m/z\" unitCvRef=\"MS\" />\n";
-              writeUserParam_(os, spec.getInstrumentSettings().getScanWindows()[j], 8, "/mzML/run/spectrumList/spectrum/scanList/scan/scanWindowList/scanWindow/cvParam/@accession", validator);
-              os << "\t\t\t\t\t\t\t</scanWindow>\n";
-            }
-            os << "\t\t\t\t\t\t</scanWindowList>\n";
+            os << "\t\t\t\t\t\t\t<scanWindow>\n";
+            os << "\t\t\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000501\" name=\"scan window lower limit\" value=\"" << spec.getInstrumentSettings().getScanWindows()[k].begin << "\" unitAccession=\"MS:1000040\" unitName=\"m/z\" unitCvRef=\"MS\" />\n";
+            os << "\t\t\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000500\" name=\"scan window upper limit\" value=\"" << spec.getInstrumentSettings().getScanWindows()[k].end << "\" unitAccession=\"MS:1000040\" unitName=\"m/z\" unitCvRef=\"MS\" />\n";
+            writeUserParam_(os, spec.getInstrumentSettings().getScanWindows()[k], 8, "/mzML/run/spectrumList/spectrum/scanList/scan/scanWindowList/scanWindow/cvParam/@accession", validator);
+            os << "\t\t\t\t\t\t\t</scanWindow>\n";
           }
-          os << "\t\t\t\t\t</scan>\n";
+          os << "\t\t\t\t\t\t</scanWindowList>\n";
         }
-        os << "\t\t\t\t</scanList>\n";
-
-        //--------------------------------------------------------------------------------------------
-        //precursor list
-        //--------------------------------------------------------------------------------------------
-        if (!spec.getPrecursors().empty())
+        os << "\t\t\t\t\t</scan>\n";
+      }
+      //fallback if we have no acquisition information (a dummy scan is created for RT and so on)
+      if (spec.getAcquisitionInfo().empty())
+      {
+        os << "\t\t\t\t\t<scan>\n";
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000016\" name=\"scan start time\" value=\"" << spec.getRT() << "\" unitAccession=\"UO:0000010\" unitName=\"second\" unitCvRef=\"UO\" />\n";
+        //scan windows
+        if (spec.getInstrumentSettings().getScanWindows().size() != 0)
         {
-          os << "\t\t\t<precursorList count=\"" << spec.getPrecursors().size() << "\">\n";
-          for (Size p = 0; p != spec.getPrecursors().size(); ++p)
+          os << "\t\t\t\t\t\t<scanWindowList count=\"" << spec.getInstrumentSettings().getScanWindows().size() << "\">\n";
+          for (Size j = 0; j < spec.getInstrumentSettings().getScanWindows().size(); ++j)
           {
-            writePrecursor_(os, spec.getPrecursors()[p], validator);
+            os << "\t\t\t\t\t\t\t<scanWindow>\n";
+            os << "\t\t\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000501\" name=\"scan window lower limit\" value=\"" << spec.getInstrumentSettings().getScanWindows()[j].begin << "\" unitAccession=\"MS:1000040\" unitName=\"m/z\" unitCvRef=\"MS\" />\n";
+            os << "\t\t\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000500\" name=\"scan window upper limit\" value=\"" << spec.getInstrumentSettings().getScanWindows()[j].end << "\" unitAccession=\"MS:1000040\" unitName=\"m/z\" unitCvRef=\"MS\" />\n";
+            writeUserParam_(os, spec.getInstrumentSettings().getScanWindows()[j], 8, "/mzML/run/spectrumList/spectrum/scanList/scan/scanWindowList/scanWindow/cvParam/@accession", validator);
+            os << "\t\t\t\t\t\t\t</scanWindow>\n";
           }
-          os << "\t\t\t</precursorList>\n";
+          os << "\t\t\t\t\t\t</scanWindowList>\n";
         }
+        os << "\t\t\t\t\t</scan>\n";
+      }
+      os << "\t\t\t\t</scanList>\n";
 
-        //--------------------------------------------------------------------------------------------
-        //product list
-        //--------------------------------------------------------------------------------------------
-        if (spec.getProducts().size() != 0)
+      //--------------------------------------------------------------------------------------------
+      //precursor list
+      //--------------------------------------------------------------------------------------------
+      if (!spec.getPrecursors().empty())
+      {
+        os << "\t\t\t<precursorList count=\"" << spec.getPrecursors().size() << "\">\n";
+        for (Size p = 0; p != spec.getPrecursors().size(); ++p)
         {
-          os << "\t\t\t\t<productList count=\"" << spec.getProducts().size() << "\">\n";
-          for (Size p = 0; p < spec.getProducts().size(); ++p)
-          {
-            writeProduct_(os, spec.getProducts()[p], validator);
-          }
-          os << "\t\t\t\t</productList>\n";
+          writePrecursor_(os, spec.getPrecursors()[p], validator);
         }
+        os << "\t\t\t</precursorList>\n";
+      }
 
-        //--------------------------------------------------------------------------------------------
-        //binary data array list
-        //--------------------------------------------------------------------------------------------
-        if (spec.size() != 0)
+      //--------------------------------------------------------------------------------------------
+      //product list
+      //--------------------------------------------------------------------------------------------
+      if (spec.getProducts().size() != 0)
+      {
+        os << "\t\t\t\t<productList count=\"" << spec.getProducts().size() << "\">\n";
+        for (Size p = 0; p < spec.getProducts().size(); ++p)
         {
-          String encoded_string;
-          os << "\t\t\t\t<binaryDataArrayList count=\"" << (2 + spec.getFloatDataArrays().size() + spec.getStringDataArrays().size() + spec.getIntegerDataArrays().size()) << "\">\n";
+          writeProduct_(os, spec.getProducts()[p], validator);
+        }
+        os << "\t\t\t\t</productList>\n";
+      }
 
-          writeContainerData<SpectrumType>(os, options_, spec, "mz");
-          writeContainerData<SpectrumType>(os, options_, spec, "intensity");
-
-          String compression_term = MzMLHandlerHelper::getCompressionTerm_(options_, options_.getNumpressConfigurationIntensity(), false);
-          //write float data array
-          for (Size m = 0; m < spec.getFloatDataArrays().size(); ++m)
-          {
-            const typename SpectrumType::FloatDataArray& array = spec.getFloatDataArrays()[m];
-            std::vector<double> data64_to_encode(array.size());
-            for (Size p = 0; p < array.size(); ++p)
-              data64_to_encode[p] = array[p];
-            // TODO also encode float data arrays using numpress?
-            decoder_.encode(data64_to_encode, Base64::BYTEORDER_LITTLEENDIAN, encoded_string, options_.getCompression());
-            String data_processing_ref_string = "";
-            if (array.getDataProcessing().size() != 0)
-            {
-              data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + s + "_bi_" + m + "\"";
-            }
-            os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
-            os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000523\" name=\"64-bit float\" />\n";
-            os << "\t\t\t\t\t\t" << compression_term << "\n";
-            ControlledVocabulary::CVTerm bi_term = getChildWithName_("MS:1000513", array.getName());
-            if (bi_term.id != "")
-            {
-              os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"" << bi_term.id << "\" name=\"" << bi_term.name << "\" />\n";
-            }
-            else
-            {
-              os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
-            }
-            writeUserParam_(os, array, 6, "/mzML/run/spectrumList/spectrum/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
-            os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
-            os << "\t\t\t\t\t</binaryDataArray>\n";
-          }
-          //write integer data array
-          for (Size m = 0; m < spec.getIntegerDataArrays().size(); ++m)
-          {
-            const typename SpectrumType::IntegerDataArray& array = spec.getIntegerDataArrays()[m];
-            std::vector<Int64> data64_to_encode(array.size());
-            for (Size p = 0; p < array.size(); ++p)
-              data64_to_encode[p] = array[p];
-            decoder_.encodeIntegers(data64_to_encode, Base64::BYTEORDER_LITTLEENDIAN, encoded_string, options_.getCompression());
-            String data_processing_ref_string = "";
-            if (array.getDataProcessing().size() != 0)
-            {
-              data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + s + "_bi_" + m + "\"";
-            }
-            os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
-            os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000522\" name=\"64-bit integer\" />\n";
-            os << "\t\t\t\t\t\t" << compression_term << "\n";
-            ControlledVocabulary::CVTerm bi_term = getChildWithName_("MS:1000513", array.getName());
-            if (bi_term.id != "")
-            {
-              os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"" << bi_term.id << "\" name=\"" << bi_term.name << "\" />\n";
-            }
-            else
-            {
-              os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
-            }
-            writeUserParam_(os, array, 6, "/mzML/run/spectrumList/spectrum/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
-            os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
-            os << "\t\t\t\t\t</binaryDataArray>\n";
-          }
-          //write string data arrays
-          for (Size m = 0; m < spec.getStringDataArrays().size(); ++m)
-          {
-            const typename SpectrumType::StringDataArray& array = spec.getStringDataArrays()[m];
-            std::vector<String> data_to_encode;
-            data_to_encode.resize(array.size());
-            for (Size p = 0; p < array.size(); ++p)
-              data_to_encode[p] = array[p];
-            decoder_.encodeStrings(data_to_encode, encoded_string, options_.getCompression());
-            String data_processing_ref_string = "";
-            if (array.getDataProcessing().size() != 0)
-            {
-              data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + s + "_bi_" + m + "\"";
-            }
-            os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
-            os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001479\" name=\"null-terminated ASCII string\" />\n";
-            os << "\t\t\t\t\t\t" << compression_term << "\n";
-            os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
-            writeUserParam_(os, array, 6, "/mzML/run/spectrumList/spectrum/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
-            os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
-            os << "\t\t\t\t\t</binaryDataArray>\n";
-          }
-          os << "\t\t\t\t</binaryDataArrayList>\n";
-        }
-
-        os << "\t\t\t</spectrum>\n";
-    }
-
-    template <typename MapType>
-    void MzMLHandler<MapType>::writeChromatogram_(std::ostream& os,
-            const ChromatogramType& chromatogram, Size c, Internal::MzMLValidator& validator)
-    {
-        long offset = os.tellp();
-        chromatograms_offsets.push_back(make_pair(chromatogram.getNativeID(), offset+6));
-
-        // TODO native id with chromatogram=?? prefix?
-        // IMPORTANT make sure the offset (above) corresponds to the start of the <chromatogram tag
-        os << "      <chromatogram id=\"" << writeXMLEscape(chromatogram.getNativeID()) << "\" index=\"" << c << "\" defaultArrayLength=\"" << chromatogram.size() << "\">" << "\n";
-
-        // write cvParams (chromatogram type)
-        if (chromatogram.getChromatogramType() == ChromatogramSettings::MASS_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000810\" name=\"mass chromatogram\" />\n";
-        }
-        else if (chromatogram.getChromatogramType() == ChromatogramSettings::TOTAL_ION_CURRENT_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000235\" name=\"total ion current chromatogram\" />\n";
-        }
-        else if (chromatogram.getChromatogramType() == ChromatogramSettings::SELECTED_ION_CURRENT_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000627\" name=\"selected ion current chromatogram\" />\n";
-        }
-        else if (chromatogram.getChromatogramType() == ChromatogramSettings::BASEPEAK_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000628\" name=\"basepeak chromatogram\" />\n";
-        }
-        else if (chromatogram.getChromatogramType() == ChromatogramSettings::SELECTED_ION_MONITORING_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001472\" name=\"selected ion monitoring chromatogram\" />\n";
-        }
-        else if (chromatogram.getChromatogramType() == ChromatogramSettings::SELECTED_REACTION_MONITORING_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001473\" name=\"selected reaction monitoring chromatogram\" />\n";
-        }
-        else if (chromatogram.getChromatogramType() == ChromatogramSettings::ELECTROMAGNETIC_RADIATION_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000811\" name=\"electromagnetic radiation chromatogram\" />\n";
-        }
-        else if (chromatogram.getChromatogramType() == ChromatogramSettings::ABSORPTION_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000812\" name=\"absorption chromatogram\" />\n";
-        }
-        else if (chromatogram.getChromatogramType() == ChromatogramSettings::EMISSION_CHROMATOGRAM)
-        {
-          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000813\" name=\"emission chromatogram\" />\n";
-        }
-        else
-        {
-          // TODO
-        }
-        writePrecursor_(os, chromatogram.getPrecursor(), validator);
-        writeProduct_(os, chromatogram.getProduct(), validator);
-
-        //--------------------------------------------------------------------------------------------
-        //binary data array list
-        //--------------------------------------------------------------------------------------------
-        String compression_term;
+      //--------------------------------------------------------------------------------------------
+      //binary data array list
+      //--------------------------------------------------------------------------------------------
+      if (spec.size() != 0)
+      {
         String encoded_string;
-        os << "\t\t\t\t<binaryDataArrayList count=\"" << (2 + chromatogram.getFloatDataArrays().size() + chromatogram.getStringDataArrays().size() + chromatogram.getIntegerDataArrays().size()) << "\">\n";
+        os << "\t\t\t\t<binaryDataArrayList count=\"" << (2 + spec.getFloatDataArrays().size() + spec.getStringDataArrays().size() + spec.getIntegerDataArrays().size()) << "\">\n";
 
-        writeContainerData<ChromatogramType>(os, options_, chromatogram, "time");
-        writeContainerData<ChromatogramType>(os, options_, chromatogram, "intensity");
+        writeContainerData<SpectrumType>(os, options_, spec, "mz");
+        writeContainerData<SpectrumType>(os, options_, spec, "intensity");
 
-        compression_term = MzMLHandlerHelper::getCompressionTerm_(options_, options_.getNumpressConfigurationIntensity(), false);
+        String compression_term = MzMLHandlerHelper::getCompressionTerm_(options_, options_.getNumpressConfigurationIntensity(), false);
         //write float data array
-        for (Size m = 0; m < chromatogram.getFloatDataArrays().size(); ++m)
+        for (Size m = 0; m < spec.getFloatDataArrays().size(); ++m)
         {
-          const typename ChromatogramType::FloatDataArray& array = chromatogram.getFloatDataArrays()[m];
+          const typename SpectrumType::FloatDataArray& array = spec.getFloatDataArrays()[m];
           std::vector<double> data64_to_encode(array.size());
           for (Size p = 0; p < array.size(); ++p)
             data64_to_encode[p] = array[p];
@@ -5259,7 +5234,7 @@ protected:
           String data_processing_ref_string = "";
           if (array.getDataProcessing().size() != 0)
           {
-            data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + c + "_bi_" + m + "\"";
+            data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + s + "_bi_" + m + "\"";
           }
           os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
           os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000523\" name=\"64-bit float\" />\n";
@@ -5273,14 +5248,14 @@ protected:
           {
             os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
           }
-          writeUserParam_(os, array, 6, "/mzML/run/chromatogramList/chromatogram/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
+          writeUserParam_(os, array, 6, "/mzML/run/spectrumList/spectrum/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
           os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
           os << "\t\t\t\t\t</binaryDataArray>\n";
         }
         //write integer data array
-        for (Size m = 0; m < chromatogram.getIntegerDataArrays().size(); ++m)
+        for (Size m = 0; m < spec.getIntegerDataArrays().size(); ++m)
         {
-          const typename ChromatogramType::IntegerDataArray& array = chromatogram.getIntegerDataArrays()[m];
+          const typename SpectrumType::IntegerDataArray& array = spec.getIntegerDataArrays()[m];
           std::vector<Int64> data64_to_encode(array.size());
           for (Size p = 0; p < array.size(); ++p)
             data64_to_encode[p] = array[p];
@@ -5288,7 +5263,7 @@ protected:
           String data_processing_ref_string = "";
           if (array.getDataProcessing().size() != 0)
           {
-            data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + c + "_bi_" + m + "\"";
+            data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + s + "_bi_" + m + "\"";
           }
           os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
           os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000522\" name=\"64-bit integer\" />\n";
@@ -5302,14 +5277,14 @@ protected:
           {
             os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
           }
-          writeUserParam_(os, array, 6, "/mzML/run/chromatogramList/chromatogram/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
+          writeUserParam_(os, array, 6, "/mzML/run/spectrumList/spectrum/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
           os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
           os << "\t\t\t\t\t</binaryDataArray>\n";
         }
         //write string data arrays
-        for (Size m = 0; m < chromatogram.getStringDataArrays().size(); ++m)
+        for (Size m = 0; m < spec.getStringDataArrays().size(); ++m)
         {
-          const typename ChromatogramType::StringDataArray& array = chromatogram.getStringDataArrays()[m];
+          const typename SpectrumType::StringDataArray& array = spec.getStringDataArrays()[m];
           std::vector<String> data_to_encode;
           data_to_encode.resize(array.size());
           for (Size p = 0; p < array.size(); ++p)
@@ -5318,23 +5293,174 @@ protected:
           String data_processing_ref_string = "";
           if (array.getDataProcessing().size() != 0)
           {
-            data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + c + "_bi_" + m + "\"";
+            data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + s + "_bi_" + m + "\"";
           }
           os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
           os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001479\" name=\"null-terminated ASCII string\" />\n";
           os << "\t\t\t\t\t\t" << compression_term << "\n";
           os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
-          writeUserParam_(os, array, 6, "/mzML/run/chromatogramList/chromatogram/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
+          writeUserParam_(os, array, 6, "/mzML/run/spectrumList/spectrum/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
           os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
           os << "\t\t\t\t\t</binaryDataArray>\n";
         }
         os << "\t\t\t\t</binaryDataArrayList>\n";
-        os << "\t\t\t</chromatogram>" << "\n";
+      }
+
+      os << "\t\t\t</spectrum>\n";
     }
 
+    template <typename MapType>
+    void MzMLHandler<MapType>::writeChromatogram_(std::ostream& os,
+                                                  const ChromatogramType& chromatogram, Size c, Internal::MzMLValidator& validator)
+    {
+      long offset = os.tellp();
+      chromatograms_offsets.push_back(make_pair(chromatogram.getNativeID(), offset + 6));
+
+      // TODO native id with chromatogram=?? prefix?
+      // IMPORTANT make sure the offset (above) corresponds to the start of the <chromatogram tag
+      os << "      <chromatogram id=\"" << writeXMLEscape(chromatogram.getNativeID()) << "\" index=\"" << c << "\" defaultArrayLength=\"" << chromatogram.size() << "\">" << "\n";
+
+      // write cvParams (chromatogram type)
+      if (chromatogram.getChromatogramType() == ChromatogramSettings::MASS_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000810\" name=\"mass chromatogram\" />\n";
+      }
+      else if (chromatogram.getChromatogramType() == ChromatogramSettings::TOTAL_ION_CURRENT_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000235\" name=\"total ion current chromatogram\" />\n";
+      }
+      else if (chromatogram.getChromatogramType() == ChromatogramSettings::SELECTED_ION_CURRENT_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000627\" name=\"selected ion current chromatogram\" />\n";
+      }
+      else if (chromatogram.getChromatogramType() == ChromatogramSettings::BASEPEAK_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000628\" name=\"basepeak chromatogram\" />\n";
+      }
+      else if (chromatogram.getChromatogramType() == ChromatogramSettings::SELECTED_ION_MONITORING_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001472\" name=\"selected ion monitoring chromatogram\" />\n";
+      }
+      else if (chromatogram.getChromatogramType() == ChromatogramSettings::SELECTED_REACTION_MONITORING_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001473\" name=\"selected reaction monitoring chromatogram\" />\n";
+      }
+      else if (chromatogram.getChromatogramType() == ChromatogramSettings::ELECTROMAGNETIC_RADIATION_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000811\" name=\"electromagnetic radiation chromatogram\" />\n";
+      }
+      else if (chromatogram.getChromatogramType() == ChromatogramSettings::ABSORPTION_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000812\" name=\"absorption chromatogram\" />\n";
+      }
+      else if (chromatogram.getChromatogramType() == ChromatogramSettings::EMISSION_CHROMATOGRAM)
+      {
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000813\" name=\"emission chromatogram\" />\n";
+      }
+      else
+      {
+        // TODO
+      }
+      writePrecursor_(os, chromatogram.getPrecursor(), validator);
+      writeProduct_(os, chromatogram.getProduct(), validator);
+
+      //--------------------------------------------------------------------------------------------
+      //binary data array list
+      //--------------------------------------------------------------------------------------------
+      String compression_term;
+      String encoded_string;
+      os << "\t\t\t\t<binaryDataArrayList count=\"" << (2 + chromatogram.getFloatDataArrays().size() + chromatogram.getStringDataArrays().size() + chromatogram.getIntegerDataArrays().size()) << "\">\n";
+
+      writeContainerData<ChromatogramType>(os, options_, chromatogram, "time");
+      writeContainerData<ChromatogramType>(os, options_, chromatogram, "intensity");
+
+      compression_term = MzMLHandlerHelper::getCompressionTerm_(options_, options_.getNumpressConfigurationIntensity(), false);
+      //write float data array
+      for (Size m = 0; m < chromatogram.getFloatDataArrays().size(); ++m)
+      {
+        const typename ChromatogramType::FloatDataArray& array = chromatogram.getFloatDataArrays()[m];
+        std::vector<double> data64_to_encode(array.size());
+        for (Size p = 0; p < array.size(); ++p)
+          data64_to_encode[p] = array[p];
+        // TODO also encode float data arrays using numpress?
+        decoder_.encode(data64_to_encode, Base64::BYTEORDER_LITTLEENDIAN, encoded_string, options_.getCompression());
+        String data_processing_ref_string = "";
+        if (array.getDataProcessing().size() != 0)
+        {
+          data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + c + "_bi_" + m + "\"";
+        }
+        os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000523\" name=\"64-bit float\" />\n";
+        os << "\t\t\t\t\t\t" << compression_term << "\n";
+        ControlledVocabulary::CVTerm bi_term = getChildWithName_("MS:1000513", array.getName());
+        if (bi_term.id != "")
+        {
+          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"" << bi_term.id << "\" name=\"" << bi_term.name << "\" />\n";
+        }
+        else
+        {
+          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
+        }
+        writeUserParam_(os, array, 6, "/mzML/run/chromatogramList/chromatogram/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
+        os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
+        os << "\t\t\t\t\t</binaryDataArray>\n";
+      }
+      //write integer data array
+      for (Size m = 0; m < chromatogram.getIntegerDataArrays().size(); ++m)
+      {
+        const typename ChromatogramType::IntegerDataArray& array = chromatogram.getIntegerDataArrays()[m];
+        std::vector<Int64> data64_to_encode(array.size());
+        for (Size p = 0; p < array.size(); ++p)
+          data64_to_encode[p] = array[p];
+        decoder_.encodeIntegers(data64_to_encode, Base64::BYTEORDER_LITTLEENDIAN, encoded_string, options_.getCompression());
+        String data_processing_ref_string = "";
+        if (array.getDataProcessing().size() != 0)
+        {
+          data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + c + "_bi_" + m + "\"";
+        }
+        os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000522\" name=\"64-bit integer\" />\n";
+        os << "\t\t\t\t\t\t" << compression_term << "\n";
+        ControlledVocabulary::CVTerm bi_term = getChildWithName_("MS:1000513", array.getName());
+        if (bi_term.id != "")
+        {
+          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"" << bi_term.id << "\" name=\"" << bi_term.name << "\" />\n";
+        }
+        else
+        {
+          os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
+        }
+        writeUserParam_(os, array, 6, "/mzML/run/chromatogramList/chromatogram/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
+        os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
+        os << "\t\t\t\t\t</binaryDataArray>\n";
+      }
+      //write string data arrays
+      for (Size m = 0; m < chromatogram.getStringDataArrays().size(); ++m)
+      {
+        const typename ChromatogramType::StringDataArray& array = chromatogram.getStringDataArrays()[m];
+        std::vector<String> data_to_encode;
+        data_to_encode.resize(array.size());
+        for (Size p = 0; p < array.size(); ++p)
+          data_to_encode[p] = array[p];
+        decoder_.encodeStrings(data_to_encode, encoded_string, options_.getCompression());
+        String data_processing_ref_string = "";
+        if (array.getDataProcessing().size() != 0)
+        {
+          data_processing_ref_string = String("dataProcessingRef=\"dp_sp_") + c + "_bi_" + m + "\"";
+        }
+        os << "\t\t\t\t\t<binaryDataArray arrayLength=\"" << array.size() << "\" encodedLength=\"" << encoded_string.size() << "\" " << data_processing_ref_string << ">\n";
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1001479\" name=\"null-terminated ASCII string\" />\n";
+        os << "\t\t\t\t\t\t" << compression_term << "\n";
+        os << "\t\t\t\t\t\t<cvParam cvRef=\"MS\" accession=\"MS:1000786\" name=\"non-standard data array\" value=\"" << array.getName() << "\" />\n";
+        writeUserParam_(os, array, 6, "/mzML/run/chromatogramList/chromatogram/binaryDataArrayList/binaryDataArray/cvParam/@accession", validator);
+        os << "\t\t\t\t\t\t<binary>" << encoded_string << "</binary>\n";
+        os << "\t\t\t\t\t</binaryDataArray>\n";
+      }
+      os << "\t\t\t\t</binaryDataArrayList>\n";
+      os << "\t\t\t</chromatogram>" << "\n";
+    }
 
   } // namespace Internal
 } // namespace OpenMS
 
 #endif
-

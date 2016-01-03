@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -108,6 +108,15 @@ START_SECTION(void addPeaks(RichPeakSpectrum& spectrum, const AASequence& peptid
   {
     TEST_REAL_SIMILAR(y_spec2[i].getPosition()[0], (y_result[i]+1.0)/2.0)
   }
+/* for quick benchmarking of implementation chances
+  for (Size i = 0; i != 1e6; ++i)
+  {
+    RichPeakSpectrum y_spec, b_spec, a_spec;
+    ptr->addPeaks(y_spec, peptide, Residue::YIon, 1);
+    ptr->addPeaks(b_spec, peptide, Residue::BIon, 1);
+    ptr->addPeaks(a_spec, peptide, Residue::AIon, 1);
+  }
+*/
 END_SECTION
 
 START_SECTION(void addAbundantImmoniumIons(RichPeakSpectrum& spec))
@@ -148,7 +157,7 @@ START_SECTION(void getSpectrum(RichPeakSpectrum& spec, const AASequence& peptide
 
   TOLERANCE_ABSOLUTE(0.001)
 
-  double result[] = {/*115.1,*/ 147.113, 204.135, 261.16, 303.203, 348.192, 431.262, 476.251, 518.294, 575.319, 632.341, 665.362};
+  double result[] = {/*114.091,*/ 147.113, 204.135, 261.16, 303.203, 348.192, 431.262, 476.251, 518.294, 575.319, 632.341, 665.362};
   for (Size i = 0; i != spec.size(); ++i)
   {
     TEST_REAL_SIMILAR(spec[i].getPosition()[0], result[i])
@@ -165,13 +174,125 @@ START_SECTION(void getSpectrum(RichPeakSpectrum& spec, const AASequence& peptide
   ptr->getSpectrum(spec, peptide, 1);
   TEST_EQUAL(spec.size(), 12)
 
-  double result2[] = {115.1, 147.113, 204.135, 261.16, 303.203, 348.192, 431.262, 476.251, 518.294, 575.319, 632.341, 665.362};
+  double result2[] = {114.091, 147.113, 204.135, 261.16, 303.203, 348.192, 431.262, 476.251, 518.294, 575.319, 632.341, 665.362};
   for (Size i = 0; i != spec.size(); ++i)
   {
     TEST_REAL_SIMILAR(spec[i].getPosition()[0], result2[i])
   }
 
 
+  AASequence new_peptide = AASequence::fromString("DFPLANGER");
+  /**  From http://db.systemsbiology.net:8080/proteomicsToolkit/FragIonServlet.html
+   Seq    #       A            B            C            X            Y            Z         # (+1) 
+    D     1     88.03990    116.03481    133.06136       -        1018.49583   1001.46928    9 
+    F     2    235.10831    263.10323    280.12978    929.44815    903.46888    886.44233    8 
+    P     3    332.16108    360.15599    377.18254    782.37973    756.40047    739.37392    7 
+    I     4    445.24514    473.24005    490.26660    685.32697    659.34771    642.32116    6 
+    A     5    516.28225    544.27717    561.30372    572.24291    546.26364    529.23709    5 
+    N     6    630.32518    658.32009    675.34664    501.20579    475.22653    458.19998    4 
+    G     7    687.34664    715.34156    732.36811    387.16287    361.18360    344.15705    3 
+    E     8    816.38924    844.38415    861.41070    330.14140    304.16214    287.13559    2 
+    R     9    972.49035   1000.48526       -         201.09881    175.11955    158.09300    1 
+  **/
+
+  double result_all[Size(52)] = { 88.03990,116.03481,133.06136,1018.49583,1001.46928,235.10831,263.10323,280.12978,929.44815,903.46888,886.44233,
+    332.16108,360.15599,377.18254,782.37973,756.40047,739.37392, 445.24514,473.24005,490.26660,685.32697,659.34771,642.32116,
+    516.28225,544.27717,561.30372,572.24291,546.26364,529.23709, 630.32518,658.32009,675.34664,501.20579,475.22653,458.19998,
+    687.34664,715.34156,732.36811,387.16287,361.18360,344.15705, 816.38924,844.38415,861.41070,330.14140,304.16214,287.13559,
+    /*972.49035 basically neutral loss of prec,*/1000.48526,201.09881,175.11955,158.09300};
+  std::sort(result_all,result_all+Size(51));
+  spec.clear(true);
+
+  param.setValue("add_first_prefix_ion", "true");
+  param.setValue("add_a_ions", "true");
+  param.setValue("add_b_ions", "true");
+  param.setValue("add_c_ions", "true");
+  param.setValue("add_x_ions", "true");
+  param.setValue("add_y_ions", "true");
+  param.setValue("add_z_ions", "true");
+  param.setValue("add_precursor_peaks", "true");
+  ptr->setParameters(param);
+  ptr->getSpectrum(spec, new_peptide, 1);
+  TEST_EQUAL(spec.size(), 51)
+
+  vector<double> generated;
+  for (Size i = 0; i != spec.size(); ++i)
+  {
+    generated.push_back(spec[i].getPosition()[0]);
+  }
+
+  std::sort(generated.begin(),generated.end());
+  for (Size i = 0; i != generated.size(); ++i)
+  {
+    TEST_REAL_SIMILAR(generated[i], result_all[i])
+  }
+
+  // test loss creation and annotation
+  spec.clear(true);
+  param = ptr->getParameters();
+  param.setValue("add_first_prefix_ion", "true");
+  param.setValue("add_a_ions", "false");
+  param.setValue("add_b_ions", "true");
+  param.setValue("add_c_ions", "false");
+  param.setValue("add_x_ions", "true");
+  param.setValue("add_y_ions", "false");
+  param.setValue("add_z_ions", "false");
+  param.setValue("add_precursor_peaks", "true");
+  param.setValue("add_metainfo", "true");
+  param.setValue("add_losses", "true");
+  ptr->setParameters(param);
+  ptr->getSpectrum(spec, peptide, 1);
+  TEST_EQUAL(spec.size(), 30)
+  set<String> ion_names;
+  // ions without losses
+  ion_names.insert("b1+");
+  ion_names.insert("x1+");
+  ion_names.insert("b2+");
+  ion_names.insert("x2+");
+  ion_names.insert("b3+");
+  ion_names.insert("x3+");
+  ion_names.insert("b4+");
+  ion_names.insert("x4+");
+  ion_names.insert("b5+");
+  ion_names.insert("x5+");
+  ion_names.insert("b6+");
+  ion_names.insert("x6+");
+
+  // currently losses are generated independent of ion ladder type (b,y,...)
+  // if an amino acid with potential loss is present in the prefix/suffix, then the loss is applied
+  // if multiple amino acids with the same e.g. water loss are present in the prefix/suffix ion then the loss is only applied once
+  ion_names.insert("x1-H3N1+");
+  ion_names.insert("x2-H3N1+");
+  ion_names.insert("x3-H3N1+");
+  ion_names.insert("b3-H2O1+");
+  ion_names.insert("x4-H3N1+");
+  ion_names.insert("b4-H2O1+");
+  ion_names.insert("b4-H3N1+");
+  ion_names.insert("x5-H2O1+");
+  ion_names.insert("x5-H3N1+");
+  ion_names.insert("b5-H2O1+");
+  ion_names.insert("b5-H3N1+");
+  ion_names.insert("b6-H2O1+");
+  ion_names.insert("b6-H3N1+");
+  ion_names.insert("x6-H2O1+");
+  ion_names.insert("x6-H3N1+");
+
+  // precursors
+  ion_names.insert("[M+H]-H2O+");
+  ion_names.insert("[M+H]-NH3+");
+  ion_names.insert("[M+H]+");
+
+  // check if all losses have been annotated
+  for (Size i = 0; i != spec.size(); ++i)
+  {
+    vector<String> keys;
+    spec[i].getKeys(keys);
+    for (Size j = 0; j != keys.size(); ++j)
+    {
+      String name = spec[i].getMetaValue(keys[j]);
+      TEST_EQUAL(ion_names.find(name) != ion_names.end(), true)
+    }
+  }
 END_SECTION
 
 START_SECTION(([EXTRA] bugfix test where losses lead to formulae with negative element frequencies))
@@ -191,7 +312,6 @@ START_SECTION(([EXTRA] bugfix test where losses lead to formulae with negative e
   TEST_EQUAL(tmp.size(), 212)
 }
 END_SECTION
-
 
 /////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////

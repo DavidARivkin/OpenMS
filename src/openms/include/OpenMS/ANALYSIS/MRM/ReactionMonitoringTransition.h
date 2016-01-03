@@ -2,7 +2,7 @@
 //                   OpenMS -- Open-Source Mass Spectrometry
 // --------------------------------------------------------------------------
 // Copyright The OpenMS Team -- Eberhard Karls University Tuebingen,
-// ETH Zurich, and Freie Universitaet Berlin 2002-2014.
+// ETH Zurich, and Freie Universitaet Berlin 2002-2015.
 //
 // This software is released under a three-clause BSD license:
 //  * Redistributions of source code must retain the above copyright
@@ -46,9 +46,11 @@ namespace OpenMS
   /**
     @brief This class stores a SRM/MRM transition
 
-    The default values for precursor and product m/z values are
-    set to numeric_limits<double>::max(). Default values for
-    precursor an product charge is set to numeric_limits<Int>::max().
+    This class is capable of representing a <Transition> tag in a TraML
+    document completely and contains all associated information.
+
+    The default values for precursor m/z is 0.0 which indicates that it is
+    uninitialized.
   */
   class OPENMS_DLLAPI ReactionMonitoringTransition :
     public CVTermList
@@ -152,6 +154,37 @@ public:
 
     void setLibraryIntensity(double intensity);
 
+    /** @brief Detecting transitions
+     * 
+     * Detecting transitions represent the set of transitions of an assay that should be used
+     * to enable candidate peak group detection. Ideally they were observed and validated in 
+     * previous experiments and have an associated library intensity.
+     * For an overview, see Schubert OT et al., Building high-quality assay libraries for
+     * targeted analysis of SWATH MS data., Nat Protoc. 2015 Mar;10(3):426-41.
+     * doi: 10.1038/nprot.2015.015. Epub 2015 Feb 12. PMID: 25675208 
+     *
+    */
+    bool isDetectingTransition() const;
+
+    /** @brief Identifying transitions
+     * 
+     * Identifying transitions represent the set of transitions of an assay that should be used
+     * for the independent identification of a candidate peak group. These transitions will
+     * be scored independently of the detecting transitions.
+     *
+    */
+    bool isIdentifyingTransition() const;
+
+    /** @brief Quantifying transitions
+     * 
+     * Quantifying transitions represent the set of transitions of an assay that should be used
+     * for the quantification of the peptide. This includes exclusion of e.g. interfered
+     * transitions (example: light/heavy peptide pairs isolated in the same swath), that
+     * should not be used for quantification of the peptide.
+     *
+    */
+    bool isQuantifyingTransition() const;
+
     //@}
 
     /** @name Predicates
@@ -205,8 +238,9 @@ protected:
     // Prediction
     // cvparam / userParam
 
-    // A transition has exactly one precursor and it must supply the CV Term 1000827 (isolation window target m/z
+    // A transition has exactly one precursor and it must supply the CV Term 1000827 (isolation window target m/z)
     double precursor_mz_;
+
     CVTermList precursor_cv_terms_;
 
     Product product_;
