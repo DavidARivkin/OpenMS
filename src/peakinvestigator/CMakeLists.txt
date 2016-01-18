@@ -47,7 +47,14 @@ endif()
 #------------------------------------------------------------------------------
 # Find Qt
 #------------------------------------------------------------------------------
-find_package(Qt4 REQUIRED)
+find_package(Qt4 REQUIRED QtGui QtOpenGL QtSVG QtWebKit QtNetwork ${phonon_extra})
+if (NOT QT4_FOUND)
+  message(STATUS "Qt4 not found!")
+  message(FATAL_ERROR "To find a custom Qt installation use: cmake <..more options..> -D QT_QMAKE_EXECUTABLE='<path_to_qmake(.exe)' <src-dir>")
+endif()
+# required to indicate we use qtopengl
+set(QT_USE_QTOPENGL TRUE)
+include(${QT_USE_FILE})
 
 #------------------------------------------------------------------------------
 
@@ -75,6 +82,28 @@ include(source/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigator.cmake)
 #include(include/OpenMS/VISUAL/PEAKINVESTIGATOR/sources.cmake)
 #include(include/OpenMS/VISUAL/PEAKINVESTIGATOR/UIC/sources.cmake)
 
+# --------------------------------------------------------------------------
+# collect link dependencies
+set(OpenMS_GUI_DEP_LIBRARIES OpenMS
+                             ${QT_LIBRARIES})
+
+# --------------------------------------------------------------------------
+# handle OpenGL on macosx systems
+if(APPLE)
+  find_package(OpenGL REQUIRED)
+  set(OpenMS_GUI_DEP_LIBRARIES ${OpenMS_GUI_DEP_LIBRARIES}
+                               ${OPENGL_gl_LIBRARY}
+                               ${OPENGL_glu_LIBRARY})
+endif()
+
+# --------------------------------------------------------------------------
+# additional linker flags required by openms_gui
+if (MSVC)
+  set (GUI_lnk_flags "/FORCE:MULTIPLE /INCREMENTAL:NO /ignore:4006 /ignore:4088")
+  set_target_properties(OpenMS_GUI PROPERTIES LINK_FLAGS ${GUI_lnk_flags}) ## allow multiple definitions of symbols (e.g. from template instanciations or STL-derived classes)
+endif()
+
+
 #------------------------------------------------------------------------------
 # add the library
 openms_add_library(TARGET_NAME PeakInvestigatorImpl
@@ -83,7 +112,7 @@ openms_add_library(TARGET_NAME PeakInvestigatorImpl
                    INTERNAL_INCLUDES ${PROJECT_SOURCE_DIR}/include 
                                      ${PROJECT_BINARY_DIR}/include
                    EXTERNAL_INCLUDES ${Boost_INCLUDE_DIRS} ${OpenMS_INCLUDE_DIRECTORIES}
-                   LINK_LIBRARIES OpenMS ${LIBSSH2_LIBRARIES}
+                   LINK_LIBRARIES OpenMS ${LIBSSH2_LIBRARIES} ${OpenMS_GUI_DEP_LIBRARIES} qjson
                    DLL_EXPORT_PATH "OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/")
 
 openms_doc_path("${PROJECT_SOURCE_DIR}/include")
