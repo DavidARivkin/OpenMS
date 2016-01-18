@@ -16,7 +16,6 @@ FuzzyDiff
 IDDecoyProbability
 IDExtractor
 IDMassAccuracy
-IDScoreSwitcher
 IDSplitter
 LabeledEval
 LowMemPeakPickerHiRes
@@ -24,11 +23,10 @@ LowMemPeakPickerHiRes_RandomAccess
 MapAlignmentEvaluation
 MassCalculator
 MetaboliteSpectralMatcher
-MetaProSIP
 MRMPairFinder
 MSSimulator
-MzMLSplitter
 OpenMSInfo
+PeakInvestigator
 PeakPickerIterative
 QCCalculator
 QCEmbedder
@@ -46,7 +44,6 @@ SimpleSearchEngine
 SpecLibCreator
 SvmTheoreticalSpectrumGeneratorTrainer
 TransformationEvaluation
-TopPerc
 XMLValidator
 #SimpleSearchEngine
 #RNPxlSearch
@@ -66,7 +63,7 @@ if(NOT DISABLE_OPENSWATH)
 endif(NOT DISABLE_OPENSWATH)
 
 
-## all targets requiring OpenMS_GUI
+## all targets with need linkage against OpenMS_GUI.lib - they also need to appear in the list above)
 set(UTILS_executables_with_GUIlib
 IDEvaluator
 ImageCreator
