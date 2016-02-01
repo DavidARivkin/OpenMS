@@ -562,7 +562,7 @@ namespace OpenMS
       return false;
     }
 
-    cout << contents.toAscii().data() << endl;
+    LOG_INFO << contents.toAscii().data() << endl;
     return true;
 
   }
@@ -678,16 +678,21 @@ namespace OpenMS
 
       if(status == "Ready")
       {
+          LOG_INFO << "Preparation of the job file completed, ";
           prep_count_ = jMap["ScanCount"].toString().toInt();
+          LOG_INFO << "found " << prep_count_ << "scans, and mass spectrometer type ";
           // TODO check ScanCount vs count saved, report error if not equal.
           prep_ms_type = jMap["MSType"].toString();
+          LOG_INFO <<  prep_ms_type.toAscii().data() << endl;
       }
       else if(status == "Analyzing")
       {
+          LOG_INFO << "Preparation of the job file is still analyzing" << endl;
           return PREP_ANALYZING;
       }
       else
       {
+          LOG_INFO << "Preparation of the job file returned an error occurred" << endl;
           return PREP_ERROR;
       }
 
