@@ -255,35 +255,42 @@ namespace OpenMS
 
     url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
 
-    Size minMass = 0, maxMass = 0;
-    for (Size i = 0; i < experiment_.size(); i++)
-    {
-      maxMass = qMax(maxMass, experiment_[i].size());
+    uint minMass = UINT_MAX,
+         maxMass = 0;
+    // Loop over the scans
+    for(Size s = 0; s < experiment_.size(); s++) {
+        // Loop over the datapoints
+        experiment_[s].sortByPosition();
+        // Get the Position_/Coordinate_
+        minMass = qMin(minMass, (uint)floor(experiment_[s][0].getPosition()[0]));
+        Size sEnd = experiment_[s].size()-1;
+        maxMass = qMax(maxMass, (uint)ceil(experiment_[s][sEnd].getPosition()[0]));
     }
+
 #ifdef WITH_GUI
 // Ask the user for a min and max value
-    QDialog *massDlg = new QDialog();
-    massDlg->setWindowTitle("Peak Investigator Job");
-    QVBoxLayout *mainLayout = new QVBoxLayout(massDlg);
-    QFrame *formFrame = new QFrame(massDlg);
+    QDialog massDlg;
+    massDlg.setWindowTitle("Peak Investigator Job");
+    QVBoxLayout *mainLayout = new QVBoxLayout(&massDlg);
+    QFrame *formFrame = new QFrame(&massDlg);
     QFormLayout *form = new QFormLayout(formFrame);
-    QLabel *maxLabel = new QLabel("Maximum Mass:", massDlg);
-    QLabel *minLabel = new QLabel("Minimum Mass:", massDlg);
-    QLineEdit *maxEdit = new QLineEdit(QString::number(maxMass), massDlg);
-    QLineEdit *minEdit = new QLineEdit(QString::number(minMass), massDlg);
+    QLabel *maxLabel = new QLabel("Maximum Mass:", &massDlg);
+    QLabel *minLabel = new QLabel("Minimum Mass:",& massDlg);
+    QLineEdit *maxEdit = new QLineEdit(QString::number(maxMass), &massDlg);
+    QLineEdit *minEdit = new QLineEdit(QString::number(minMass), &massDlg);
     form->addRow(maxLabel, maxEdit);
     form->addRow(minLabel, minEdit);
     mainLayout->addWidget(formFrame);
-    QFrame *btnFrame = new QFrame(massDlg);
-    QPushButton *okBtn = new QPushButton("Accept", massDlg);
-    QObject::connect(okBtn, SIGNAL(clicked()), massDlg, SIGNAL(accept()));
-    QPushButton *rejectBtn = new QPushButton("Reject", massDlg);
-    QObject::connect(rejectBtn, SIGNAL(clicked()), massDlg, SIGNAL(reject()));
+    QFrame *btnFrame = new QFrame(&massDlg);
+    QPushButton *okBtn = new QPushButton("Accept", &massDlg);
+    QObject::connect(okBtn, SIGNAL(clicked()), &massDlg, SIGNAL(accept()));
+    QPushButton *rejectBtn = new QPushButton("Reject", &massDlg);
+    QObject::connect(rejectBtn, SIGNAL(clicked()), &massDlg, SIGNAL(reject()));
     QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
     buttonLayout->addWidget(okBtn);
     buttonLayout->addWidget(rejectBtn);
     mainLayout->addWidget(btnFrame);
-    if(massDlg->exec() == QDialog::Accepted) {
+    if(massDlg.exec() == QDialog::Accepted) {
         uint xmass = maxEdit->text().toUInt();
         if(xmass > maxMass) {
             LOG_ERROR << "The Maximum Mass must be less than " <<  maxMass;
