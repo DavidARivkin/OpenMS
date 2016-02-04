@@ -88,7 +88,7 @@ protected:
     setValidFormats_("out", ListUtils::create<String>("mzML"));
 
     registerStringOption_("mode", "<text>", "", "mode to run PeakInvestigator job");
-    setValidStrings_("mode", ListUtils::create<String>("submit,check,fetch"));
+    setValidStrings_("mode", ListUtils::create<String>("submit,check,fetch,delete"));
 
     registerSubsection_("veritomyx", "Veritomyx account information");
   }
@@ -147,7 +147,10 @@ protected:
     {
         pp.setMode(PeakInvestigator::FETCH);
     }
-
+    else if (mode == "delete")
+    {
+        pp.setMode(PeakInvestigator::DELETE);
+    }
 
     QObject::connect(&pp, SIGNAL(finishedRequest()), &app, SLOT(quit()));
     QTimer::singleShot(100, &pp, SLOT(run()));
@@ -174,7 +177,7 @@ protected:
       filename = out.toQString();
     }
 
-    if (mode != "check")
+    if (mode != "check" && mode != "delete")
     {
       input.store(filename, pp.getExperiment());
     }

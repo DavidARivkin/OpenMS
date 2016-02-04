@@ -71,7 +71,7 @@
 
 #define VI_API_SUFFIX "/api/"
 #define VI_SSH_HASH String("Hash seed!")
-#define reqVeritomyxCLIVersion String("2.12")
+#define reqVeritomyxCLIVersion String("3.0")
 #define minutesCheckPrep 2
 #define minutesTimeoutPrep 20
 
@@ -90,8 +90,9 @@ namespace OpenMS
     defaults_.setValue("password", "PASSWORD", "Password for account registered with Veritomyx");
     defaults_.setValue("account", "0", "Account number");
 
-    defaults_.setValue("MinMass", "0", "Minimum mass to use");
-    defaults_.setValue("MaxMass", QString::number(2^32), "Maximum mass to use");
+    defaults_.setValue("PIVersion", "1.2", "The version of the algorithm to run on the PeakInvestigator SaaS");
+    defaults_.setValue("MinMass", 0, "Minimum mass to use");
+    defaults_.setValue("MaxMass", INT_MAX, "Maximum mass to use");
 
 #ifndef WITH_GUI
     defaults_.setValue("RTO", "RTO-24", "Response Time Objective to use");
@@ -120,7 +121,7 @@ namespace OpenMS
     {
 
     case SUBMIT:
-      if (!initializeJob_())
+      if (!PIVersionsJob_() || !initializeJob_())
       {
         break;
       }
@@ -169,11 +170,7 @@ namespace OpenMS
 
     case FETCH:
 
-      if(!getSFTPCredentials_())
-      {
-          break;
-      }
-      if(!checkJob_()) // Seems we need to check STATUS before file is moved to SFTP drop after completion
+      if(!getSFTPCredentials_() || !checkJob_()) // Seems we need to check STATUS before file is moved to SFTP drop after completion
       {
         break;
       }
@@ -249,23 +246,57 @@ namespace OpenMS
     return true;
   }
 
-  bool PeakInvestigator::initializeJob_()
+  bool PeakInvestigator::PIVersionsJob_()
   {
     LOG_DEBUG << "Requsting credentials for " + username_ + "..." << endl;
 
     url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
 
-    uint minMass = UINT_MAX,
+    QString params = QString("Version=" + reqVeritomyxCLIVersion.toQString()); // online CLI version that matches this interface
+    params += "&User="	+ username_.toQString() +
+            "&Code="    + password_.toQString() +
+            "&Action="  + "PI_VERSIONS";// +
+    //        "&ID=" + account_number_.toQString();
+
+    QVariantMap jMap;
+    bool ok;
+    PostAndParse_(params, jMap, ok);
+
+    if(ok) {
+        CurrentVersion_ = jMap["Current"].toString();
+        CurrentVersion_ = jMap["LastUsed"].toString();
+        // int verCount = jMap["Count"].toString().toInt();
+        PI_versions_.clear();
+        foreach(QVariant pi, jMap["PI_Versions"].toList()) {
+            PI_versions_ << pi.toString();
+        }
+        PIVersion_ = (LastUsedVersion_.isEmpty() ? CurrentVersion_ : LastUsedVersion_);
+    }
+    return ok;
+  }
+
+    bool PeakInvestigator::initializeJob_()
+  {
+    LOG_DEBUG << "Requsting credentials for " + username_ + "..." << endl;
+
+    url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
+
+    int minMass = INT_MAX,
          maxMass = 0;
+    int pointsCount = 0;
     // Loop over the scans
     for(Size s = 0; s < experiment_.size(); s++) {
         // Loop over the datapoints
         experiment_[s].sortByPosition();
         // Get the Position_/Coordinate_
-        minMass = qMin(minMass, (uint)floor(experiment_[s][0].getPosition()[0]));
+        minMass = qMin(minMass, (int)floor(experiment_[s][0].getPosition()[0]));
         Size sEnd = experiment_[s].size()-1;
-        maxMass = qMax(maxMass, (uint)ceil(experiment_[s][sEnd].getPosition()[0]));
+        maxMass = qMax(maxMass, (int)ceil(experiment_[s][sEnd].getPosition()[0]));
+        // Get the number of datapoints in the scan
+        pointsCount = qMax(pointsCount, (int)sEnd);
     }
+    min_mass_ = qMax(minMass, min_mass_);
+    max_mass_ = qMin(maxMass, max_mass_);
 
 #ifdef WITH_GUI
 // Ask the user for a min and max value
@@ -277,7 +308,7 @@ namespace OpenMS
     QLabel *maxLabel = new QLabel("Maximum Mass:", &massDlg);
     QLabel *minLabel = new QLabel("Minimum Mass:",& massDlg);
     QLineEdit *maxEdit = new QLineEdit(QString::number(maxMass), &massDlg);
-    QLineEdit *minEdit = new QLineEdit(QString::number(minMass), &massDlg);
+    QLineEdit *minEdit = new QLineEdit(QStrng::number(minMass), &massDlg);
     form->addRow(maxLabel, maxEdit);
     form->addRow(minLabel, minEdit);
     mainLayout->addWidget(formFrame);
@@ -308,92 +339,61 @@ namespace OpenMS
     } else {
         return false;
     }
-#else
-    dp.getMetaValue("veritomyx:MinMass", minMass);
-    dp.getMetaValue("veritomyx:MaxMass", maxMass);
 #endif
+
+    // Ensure the selected PIVersion_ is available
+    if(!PI_versions_.contains(PIVersion_)) {
+        LOG_ERROR << "There was an error with the seleted version: " << PIVersion_.constData() << endl;
+        return false;
+    }
 
     QString params = QString("Version=" + reqVeritomyxCLIVersion.toQString()); // online CLI version that matches this interface
     params += "&User="	+ username_.toQString() +
             "&Code="    + password_.toQString() +
             "&Action="  + "INIT" +
             "&ID=" + account_number_.toQString() +
-            "&ScanCount=" + experiment_.size() +
+            "&PI_Version=" + PIVersion_ +
+            "&ScanCount=" + QString::number(experiment_.size()) +
+            "&MaxPoints=" + QString::number(pointsCount) +
+            "&MinMass=" + QString::number(minMass) +
+            "&MaxMass=" + QString::number(maxMass);
 //		",\"CalibrationCount\": " + calibrationCount + "\"" +
-            "&MinMass=" + minMass +
-            "&MaxMass=" + maxMass;
 
-    QNetworkRequest request(url_);
-    reply_ = manager_.put(request, params.toUtf8());
-
-    QEventLoop loop;
-    QObject::connect(reply_, SIGNAL(finished()), &loop, SLOT(quit()));
-    loop.exec();
-
-    if (reply_->error() != QNetworkReply::NoError)
-    {
-      LOG_ERROR << "There was an error making a network request:\n";
-      LOG_ERROR << reply_->errorString().toAscii().data() << endl;
-      reply_->deleteLater();
-      return false;
-    }
-
-    QString contents(reply_->readAll());
-    reply_->deleteLater();
-
-    QJson::Parser parser;
+    QVariantMap jMap;
     bool ok;
+    PostAndParse_(params, jMap, ok);
 
-    QVariantMap jMap = parser.parse(contents.toAscii(), &ok).toMap();
-    if(!ok) {
-        LOG_ERROR << "Error parsing JSON return from INIT occurred:" << contents.toAscii().data() << endl;
-        return false;
-    }
+    if(ok) {
+        job_ = jMap["Job"].toString();
+        funds_ = jMap["Funds"].toString();
 
-    if (jMap.contains("Error"))
-    {
-      LOG_ERROR << "Error occurred:" << jMap["Error"].toByteArray().data() << endl;
-      return false;
-    }
-    else if (contents.startsWith("<html><head>"))
-    {
-      LOG_ERROR << "There is a problem with the specified server address." << endl;
-      return false;
-    }
+#ifdef WITH_GUI
+        PIVersion_ = (LastUsedVersion.isEmtpy() ? CurrentVersion : LastUsedVersion);
+        RTOs_.clear();
+        foreach(QVariant rto, jMap["RTOs"].toList()) {
+            RTOs_ << rto.toMap();
+        }
+        RTO_ = RTOs_[0]["RTO"].toString() ;
 
-    job_ = jMap["Job"].toString();
-    funds_ = jMap["Funds"].toString();
- #ifdef WITH_GUI
-    PI_versions_.clear();
-    foreach(QVariant pi, jMap["PI_Versions"].toList()) {
-        PI_versions_ << pi.toString();
-    }
-    PIVersion_ = PI_versions_[0];
-    RTOs_.clear();
-    foreach(QVariant rto, jMap["RTOs"].toList()) {
-        RTOs_ << rto.toMap();
-    }
-    RTO_ = RTOs_[0]["RTO"].toString() ;
+        // Ask the user what RTO and Version they want to use.
 
-    // Ask the user what RTO and Version they want to use.
+        // First build the string list for the RTOs.
+        QStringList l;
+        foreach(QVariantMap i, RTOs_) {
+            l << i["RTO"].toString() + ", Estimated Cost: " + i["EstCost"].toString();
+        }
 
-    // First build the string list for the RTOs.
-    QStringList l;
-    foreach(QVariantMap i, RTOs_) {
-        l << i["RTO"].toString() + ", Estimated Cost: " + i["EstCost"].toString();
-    }
+        PIVersion_ = QInputDialog::getItem(NULL, "Peak Investigator", "Please select which version you wish to use.", PI_versions_);
 
-    PIVersion_ = QInputDialog::getItem(NULL, "Peak Investigator", "Please select which version you wish to use.", PI_versions_);
-
-    QString ret = QInputDialog::getItem(NULL, "Peak Investigator", "Please select which RTO you wish to use.\nYou have available funds of " + funds_, l);
-    RTO_ = ret.split(",")[0];
+        QString ret = QInputDialog::getItem(NULL, "Peak Investigator", "Please select which RTO you wish to use.\nYou have available funds of " + funds_, l);
+        RTO_ = ret.split(",")[0];
 
 #else
-    RTO_ = experiment_.getMetaValue("veritomyx:RTO").toQString();
-    PIVersion_ = experiment_.getMetaValue("veritomyx:PIVersion").toQString();
+        RTO_ = experiment_.getMetaValue("veritomyx:RTO").toQString();
+        PIVersion_ = experiment_.getMetaValue("veritomyx:PIVersion").toQString();
 #endif
-
-    return true;
+    }
+    return ok;
   }
 
   bool PeakInvestigator::submitJob_()
@@ -404,43 +404,15 @@ namespace OpenMS
             "&Code="    + password_.toQString() +
             "&Action="  + "RUN" +
             "&Job" + job_ +
-            "&InputFile=" + sftp_file_ +
             "&RTO=" + RTO_ +
-            "&PIVersion=" + PIVersion_;
+            "&InputFile=" + sftp_file_;
+    // "&CalibrationFile=" + calib_file_;
 
-    QNetworkRequest request(url_);
-    reply_ = manager_.put(request, params.toUtf8());
-
-    QEventLoop loop;
-    QObject::connect(reply_, SIGNAL(finished()), &loop, SLOT(quit()));
-    loop.exec();
-
-    QString contents(reply_->readAll());
-    reply_->deleteLater();
-
-    QJson::Parser parser;
+    QVariantMap jMap;
     bool ok;
-
-    QVariantMap jMap = parser.parse(contents.toAscii(), &ok).toMap();
-
-    if(!ok) {
-        LOG_ERROR << "Error parsing JSON return from RUN occurred:" << contents.toAscii().data() << endl;
-        return false;
-    }
-
-    if (jMap.contains("Error"))
-    {
-      LOG_ERROR << "Error occurred:" << jMap["Error"].toByteArray().data() << endl;
-      return false;
-    }
-    else if (contents.startsWith("<html><head>"))
-    {
-      LOG_ERROR << "There is a problem with the specified server address." << endl;
-      return false;
-    }
-
-    cout << contents.toAscii().data() << endl;
-    return true;
+    QString contents = PostAndParse_(params, jMap, ok);
+    cout << contents.toAscii().constData() << endl;
+    return ok;
 
   }
 
@@ -464,61 +436,31 @@ namespace OpenMS
               "&Action="  + "STATUS" +
               "&Job" + job_ ;
 
-    QNetworkRequest request(url_);
-    reply_ = manager_.put(request, params.toUtf8());
-
-    QEventLoop loop;
-    QObject::connect(reply_, SIGNAL(finished()), &loop, SLOT(quit()));
-    loop.exec();
-
-    if (reply_->error() != QNetworkReply::NoError)
-    {
-      LOG_ERROR << "There was an error making a network request:\n";
-      LOG_ERROR << reply_->errorString().toAscii().data() << endl;
-      reply_->deleteLater();
-      return false;
-    }
-
-    QString contents(reply_->readAll());
-    reply_->deleteLater();
-
-    QJson::Parser parser;
+    QVariantMap jMap;
     bool ok;
+    PostAndParse_(params, jMap, ok);
 
-    QVariantMap jMap = parser.parse(contents.toAscii(), &ok).toMap();
+    if(ok) {
+        if(jMap["Status"] == "Running")
+        {
+            LOG_INFO << job_.toAscii().constData() << " is still running.\n";
+            date_updated_ = jMap["Datetime"].toDate();
+            retval = false;
+        }
+        else if (jMap["Status"] == "Done")
+        {
+            LOG_INFO << job_.toAscii().constData() << " has finished.\n";
+            results_file_ = jMap["ResultsFile"].toString();
+            log_file_ = jMap["JobLogFile"].toString();
+            actual_cost_ = jMap["ActualCost"].toString();
+            date_updated_ = jMap["Datetime"].toDate();
+            retval = true;
+        }
 
-    if(!ok) {
-        LOG_ERROR << "Error parsing JSON return from INIT occurred:" << contents.toAscii().data() << endl;
+        return retval;
+    } else {
         return false;
     }
-
-    if (jMap.contains("Error"))
-    {
-      LOG_ERROR << "Error occurred:" << jMap["Error"].toByteArray().data() << endl;
-      return false;
-    }
-    else if (contents.startsWith("<html><head>"))
-    {
-      LOG_ERROR << "There is a problem with the specified server address." << endl;
-      return false;
-    }
-    else if (jMap["Status"] == "Running")
-    {
-      LOG_INFO << job_.toAscii().data() << " is still running.\n";
-      date_updated_ = jMap["Datetime"].toDate();
-      retval = false;
-    }
-    else if (jMap["Status"] == "Done")
-    {
-      LOG_INFO << job_.toAscii().data() << " has finished.\n";
-      results_file_ = jMap["ResultsFile"].toString();
-      log_file_ = jMap["JobLogFile"].toString();
-      actual_cost_ = jMap["ActualCost"].toString();
-      date_updated_ = jMap["Datetime"].toDate();
-      retval = true;
-    }
-
-    return retval;
   }
 
   bool PeakInvestigator::removeJob_()
@@ -530,47 +472,12 @@ namespace OpenMS
               "&Action="  + "DELETE" +
               "&Job" + job_ ;
 
-    QNetworkRequest request(url_);
-    reply_ = manager_.put(request, params.toUtf8());
-
-    QEventLoop loop;
-    QObject::connect(reply_, SIGNAL(finished()), &loop, SLOT(quit()));
-    loop.exec();
-
-    if (reply_->error() != QNetworkReply::NoError)
-    {
-      LOG_ERROR << "There was an error making a network request:\n";
-      LOG_ERROR << reply_->errorString().toAscii().data() << endl;
-      reply_->deleteLater();
-      return false;
-    }
-
-    QString contents(reply_->readAll());
-    reply_->deleteLater();
-
-    QJson::Parser parser;
+    QVariantMap jMap;
     bool ok;
+    QString contents = PostAndParse_(params, jMap, ok);
 
-    QVariantMap jMap = parser.parse(contents.toAscii(), &ok).toMap();
-
-    if(!ok) {
-        LOG_ERROR << "Error parsing JSON return from INIT occurred:" << contents.toAscii().data() << endl;
-        return false;
-    }
-
-    if (jMap.contains("Error"))
-    {
-      LOG_ERROR << "Error occurred:" << jMap["Error"].toByteArray().data() << endl;
-      return false;
-    }
-    else if (contents.startsWith("<html><head>"))
-    {
-      LOG_ERROR << "There is a problem with the specified server address." << endl;
-      return false;
-    }
-
-    LOG_INFO << contents.toAscii().data() << endl;
-    return true;
+    LOG_INFO << contents.toAscii().constData() << endl;
+    return ok;
 
   }
 
@@ -583,53 +490,20 @@ namespace OpenMS
                 "&Action="  + "SFTP" +
                 "&ID" + account_number_.toQString() ;
 
-      QNetworkRequest request(url_);
-      reply_ = manager_.put(request, params.toUtf8());
-
-      QEventLoop loop;
-      QObject::connect(reply_, SIGNAL(finished()), &loop, SLOT(quit()));
-      loop.exec();
-
-      if (reply_->error() != QNetworkReply::NoError)
-      {
-        LOG_ERROR << "There was an error making a network request:\n";
-        LOG_ERROR << reply_->errorString().toAscii().data() << endl;
-        reply_->deleteLater();
-        return false;
-      }
-
-      QString contents(reply_->readAll());
-      reply_->deleteLater();
-
-      QJson::Parser parser;
+      QVariantMap jMap;
       bool ok;
+      QString contents = PostAndParse_(params, jMap, ok);
 
-      QVariantMap jMap = parser.parse(contents.toAscii(), &ok).toMap();
-
-      if(!ok) {
-          LOG_ERROR << "Error parsing JSON return from INIT occurred:" << contents.toAscii().data() << endl;
-          return false;
+      if(ok) {
+          sftp_host_ = jMap["Host"].toString();
+          sftp_port_ = jMap["Port"].toString().toInt();
+          sftp_dir_  = jMap["Directory"].toString();
+          sftp_username_ = jMap["Login"].toString();
+          sftp_password_ = jMap["Password"].toString();
       }
+      cout << contents.toAscii().constData() << endl;
 
-      if (jMap.contains("Error"))
-      {
-        LOG_ERROR << "Error occurred:" << jMap["Error"].toByteArray().data() << endl;
-        return false;
-      }
-      else if (contents.startsWith("<html><head>"))
-      {
-        LOG_ERROR << "There is a problem with the specified server address." << endl;
-        return false;
-      }
-
-      sftp_host_ = jMap["Host"].toString();
-      sftp_port_ = jMap["Port"].toString().toInt();
-      sftp_dir_  = jMap["Directory"].toString();
-      sftp_username_ = jMap["Login"].toString();
-      sftp_password_ = jMap["Password"].toString();
-
-      cout << contents.toAscii().data() << endl;
-      return true;
+      return ok;
   }
 
   PeakInvestigator::PIStatus PeakInvestigator::getPrepFileMessage_()
@@ -642,69 +516,41 @@ namespace OpenMS
                 "&ID" + account_number_.toQString() +
                 "&File" + sftp_file_;
 
-      QNetworkRequest request(url_);
-      reply_ = manager_.put(request, params.toUtf8());
 
-      QEventLoop loop;
-      QObject::connect(reply_, SIGNAL(finished()), &loop, SLOT(quit()));
-      loop.exec();
-
-      if (reply_->error() != QNetworkReply::NoError)
-      {
-        LOG_ERROR << "There was an error making a network request:\n";
-        LOG_ERROR << reply_->errorString().toAscii().data() << endl;
-        reply_->deleteLater();
-        return PREP_ERROR;
-      }
-
-      QString contents(reply_->readAll());
-      reply_->deleteLater();
-
-      QJson::Parser parser;
+      QVariantMap jMap;
       bool ok;
+      QString contents = PostAndParse_(params, jMap, ok);
 
-      QVariantMap jMap = parser.parse(contents.toAscii(), &ok).toMap();
+      if(ok) {
+          QString status = jMap["Status"].toString();
 
-      if(!ok) {
-          LOG_ERROR << "Error parsing JSON return from INIT occurred:" << contents.toAscii().data() << endl;
+          if(status == "Ready")
+          {
+              LOG_INFO << "Preparation of the job file completed, ";
+              prep_count_ = jMap["ScanCount"].toString().toInt();
+              LOG_INFO << "found " << prep_count_ << "scans, and mass spectrometer type ";
+              // TODO check ScanCount vs count saved, report error if not equal.
+              prep_ms_type_ = jMap["MSType"].toString();
+              LOG_INFO <<  prep_ms_type_.toAscii().constData() << endl;
+          }
+          else if(status == "Analyzing")
+          {
+              QString s = jMap["ScanCount"].toString().left(s.indexOf("%")-1);
+              prep_percent_complete_ = s.toDouble();
+              LOG_INFO << "Preparation of the job file is still analyzing" << endl;
+              return PREP_ANALYZING;
+          }
+          else
+          {
+              LOG_INFO << "Preparation of the job file returned an error occurred" << endl;
+              return PREP_ERROR;
+          }
+          cout << contents.toAscii().constData() << endl;
+          return PREP_READY;
+      } else {
+          cout << contents.toAscii().constData() << endl;
           return PREP_ERROR;
       }
-
-      if (jMap.contains("Error"))
-      {
-        LOG_ERROR << "Error occurred:" << jMap["Error"].toByteArray().data() << endl;
-        return PREP_ERROR;
-      }
-      else if (contents.startsWith("<html><head>"))
-      {
-        LOG_ERROR << "There is a problem with the specified server address." << endl;
-        return PREP_ERROR;
-      }
-
-      QString status = jMap["Status"].toString();
-
-      if(status == "Ready")
-      {
-          LOG_INFO << "Preparation of the job file completed, ";
-          prep_count_ = jMap["ScanCount"].toString().toInt();
-          LOG_INFO << "found " << prep_count_ << "scans, and mass spectrometer type ";
-          // TODO check ScanCount vs count saved, report error if not equal.
-          prep_ms_type = jMap["MSType"].toString();
-          LOG_INFO <<  prep_ms_type.toAscii().data() << endl;
-      }
-      else if(status == "Analyzing")
-      {
-          LOG_INFO << "Preparation of the job file is still analyzing" << endl;
-          return PREP_ANALYZING;
-      }
-      else
-      {
-          LOG_INFO << "Preparation of the job file returned an error occurred" << endl;
-          return PREP_ERROR;
-      }
-
-      cout << contents.toAscii().data() << endl;
-      return PREP_READY;
   }
 
   void PeakInvestigator::updateMembers_()
@@ -713,6 +559,67 @@ namespace OpenMS
     username_ = param_.getValue("username");
     password_ = param_.getValue("password");
     account_number_ = param_.getValue("account");
+    min_mass_ = param_.getValue("MinMass");
+    max_mass_ = param_.getValue("MaxMass");
+    PIVersion_ = param_.getValue("PIVersion").toQString();
+  }
+
+  QString PeakInvestigator::PostAndParse_(QString params, QVariantMap &jMap, bool &success)
+  {
+      if(params.isEmpty()) {
+          success = false;
+          return "";
+      }
+
+      QNetworkRequest request(url_);
+      request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+      request.setHeader(QNetworkRequest::ContentLengthHeader, QString::number(params.size()));
+
+      reply_ = manager_.post(request, params.toUtf8());
+
+      QEventLoop loop;
+      QObject::connect(reply_, SIGNAL(finished()), &loop, SLOT(quit()));
+      loop.exec();
+
+      if (reply_->error() != QNetworkReply::NoError)
+      {
+        LOG_ERROR << "There was an error making a network request:\n";
+        LOG_ERROR << reply_->errorString().toAscii().constData() << endl;
+        reply_->deleteLater();
+        success = false;
+        return "";
+      }
+
+      QString contents(reply_->readAll());
+
+      reply_->deleteLater();
+      if (contents.startsWith("<html><head>"))
+      {
+          LOG_ERROR << "There is a problem with the specified server address." << endl;
+          success = false;
+      }
+      else
+      {
+
+          QJson::Parser parser;
+          bool ok;
+
+          jMap.clear();
+          jMap = parser.parse(contents.toAscii(), &ok).toMap();
+          if(!ok)
+          {
+              LOG_ERROR << "Error parsing JSON return from PeakInvestigator occurred:" << contents.toAscii().constData() << endl;
+              success = false;
+          }
+          else if (jMap.contains("Error"))
+          {
+              LOG_ERROR << "Error occurred:" << jMap["Error"].toByteArray().constData() << endl;
+              success = false;
+          } else {
+              success = true;
+          }
+      }
+      return contents;
   }
 
 }

@@ -166,6 +166,9 @@ public:
     /// Get the jobID, which is set after a call to initializeJob_().
     QString getJobID() { return job_; }
 
+    /// Get the PREP % complete, which is set after a call to initializeJob_().
+    double PrepPercentComplete() { return prep_percent_complete_; }
+
     /// Function that should be called to exit the Qt event loop.
     void shutdown() { emit finishedRequest(); }
 
@@ -189,6 +192,15 @@ protected:
      * public API</a> at various stages of SUBMIT, CHECK, or FETCH modes.
      */
 ///@{
+
+    /** @brief Initialize a PI Versions for jobs using the <a href="https://secure.veritomyx.com/interface/API.php">
+     * PeakInvestigator API</a>.
+     *
+     * This requires the Veritomyx username, password, and account parameters to be
+     * correctly specified with setParameters(). It sets the sftp_username_, sftp_password_, and
+     * job_ variables.
+     */
+    bool PIVersionsJob_();
 
     /** @brief Initialize a job using the <a href="https://secure.veritomyx.com/interface/API.php">
      * PeakInvestigator API</a>.
@@ -244,6 +256,16 @@ protected:
      */
     PIStatus getPrepFileMessage_();
 
+    /** @brief Post the request using the <a href="https://secure.veritomyx.com/interface/API.php">
+     * PeakInvestigator API</a>.
+     *
+     * This Posts the API call from Veritomyx's servers and waits for a Ready status.
+     * It assumes that the Veritomyx username, password, and account variables have been correctly
+     * specified with setParameters().
+     * Returns the status and a JMap of the JSON answer from the PeakInvestigator servers
+     */
+    QString PostAndParse_(QString params, QVariantMap &jMap, bool &ok);
+
 ///@}
 //--------------------------------------------------------------------------------------------------------
 
@@ -255,9 +277,13 @@ protected:
     String account_number_; ///< @brief Veritomyx account number. Should be provided using the TOPP interface.
     QString job_; ///< @brief Job number obtained from public API during INIT request.
     QString funds_; ///< @brief Funds obtained from public API during INIT request.
+    int min_mass_; ///< @brief Minimum mass to use.
+    int max_mass_;  ///< @brief Maximum mass to use.
     QStringList PI_versions_; ///< @brief List of PI versions available obtained from public API during INIT request.
     QVector<QVariantMap> RTOs_; ///< @brief List of RTOs available obtained from public API during INIT request. (one must be selected)
     QString PIVersion_; ///< @brief PI version selected by the user.
+    QString CurrentVersion_;///< @brief PI version that is the most current version available.
+    QString LastUsedVersion_;///< @brief PI version last used in a job by the user.
     QString RTO_; ///< @brief RTO selected by the user.
     QString sftp_username_; ///< @brief Username for Veritomyx SFTP server, obtained from public API.
     QString sftp_password_; ///< @brief Password for Veritomyx SFTP server, obtained from public API.
@@ -266,7 +292,8 @@ protected:
     QString sftp_file_; /// < @brief Filename for Veritomyx SFTP server. Set from the job ID.
     QString sftp_dir_; ///< @brief host directory for Veritomyx SFTP server, obtained from public API.
     int     prep_count_;///< @brief Scans counted by PREPP on Veritomyx SFTP server, obtained from public API.
-    QString prep_ms_type;
+    QString prep_ms_type_;
+    double  prep_percent_complete_;
     QString results_file_; ///< @brief results filename from Veritomyx SFTP server, obtained from public API.
     QString log_file_; ///< @brief Log filename from Veritomyx SFTP server, obtained from public API.
     QString actual_cost_; ///< @brief Job run cost from Veritomyx SFTP server, obtained from public API.
