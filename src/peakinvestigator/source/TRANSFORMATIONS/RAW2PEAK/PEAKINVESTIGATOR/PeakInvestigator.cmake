@@ -48,6 +48,17 @@ set(sources_system_list
   SYSTEM/PSCPSecureFileTransfer.cpp
 )
 
+set(sources_actions_list
+  BaseAction.cpp
+  DeleteAction.cpp
+  InitAction.cpp
+  PiVersionsAction.cpp
+  PrepAction.cpp
+  RunAction.cpp
+  SftpAction.cpp
+  StatusAction.cpp
+)
+
 #set(sources_dlg_list
 #  PeakInvestigatorInitDialog.cpp
 #  MassRangeDialog.cpp
@@ -68,6 +79,11 @@ endforeach(i)
 set(sources_system)
 foreach(i ${sources_system_list})
 	list(APPEND sources_system ${directory}/${i})
+endforeach(i)
+
+set(sources_actions)
+foreach(i ${sources_actions_list})
+        list(APPEND sources_actions ${directory}/${i})
 endforeach(i)
 
 #set(peakinvestigator_dlg)
@@ -95,6 +111,8 @@ list(APPEND PeakInvestigatorFiles ${mocced_sources})
 list(APPEND PeakInvestigatorFiles ${sources_format})
 list(APPEND PeakInvestigatorFiles ${sources_format_internal})
 list(APPEND PeakInvestigatorFiles ${sources_system})
+list(APPEND PeakInvestigatorFiles ${sources_actions})
+
 #if(WITH_GUI)
 #list(APPEND PeakInvestigatorFiles ${peakinvestigator_dlg})
 #endif(WITH_GUI)
@@ -115,6 +133,16 @@ set(header_format_list
 set(header_system_list
   SYSTEM/AbstractSecureFileTransfer.h
   SYSTEM/PSCPSecureFileTransfer.h
+)
+set(header_actions_list
+  BaseAction.h
+  DeleteAction.h
+  InitAction.h
+  PiVersionsAction.h
+  PrepAction.h
+  RunAction.h
+  SftpAction.h
+  StatusAction.h
 )
 
 #if(WITH_GUI)
@@ -141,6 +169,11 @@ foreach(i ${header_system_list})
 	list(APPEND header_system ${header_directory}/${i})
 endforeach(i)
 
+set(header_actions)
+foreach(i ${header_actions_list})
+        list(APPEND header_actions ${header_directory}/${i})
+endforeach(i)
+
 #if(WITH_GUI)
 #set(header_dialog)
 #foreach(i ${header_dlg_list})
@@ -158,18 +191,21 @@ list(APPEND PeakInvestigatorFiles ${peakinvestigator_header})
 list(APPEND PeakInvestigatorFiles ${header_format})
 list(APPEND PeakInvestigatorFiles ${header_format_internal})
 list(APPEND PeakInvestigatorFiles ${header_system})
+list(APPEND PeakInvestigatorFiles ${header_actions})
+
 #if(WITH_GUI)
 #list(APPEND PeakInvestigatorFiles ${header_dialog})
 #endif(WITH_GUI)
 
 # define list of headers related to peakinvestigator needed for
 # installation and export
-set(PeakInvestigatorHeaders ${peakinvestigator_header} ${header_format} ${header_format_internal} ${header_system} ${header_dlg})
+set(PeakInvestigatorHeaders ${peakinvestigator_header} ${header_format} ${header_format_internal} ${header_system} ${header_actions})
 
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${peakinvestigator_header})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT" FILES ${header_format})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\\INTERNAL" FILES ${header_format_internal})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${header_system})
+source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${header_actions})
 #if(WITH_GUI)
 #source_group("Header Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${header_dialog})
 #endif(WITH_GUI)
