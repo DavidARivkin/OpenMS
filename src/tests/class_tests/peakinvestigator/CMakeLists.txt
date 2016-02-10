@@ -28,40 +28,27 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # --------------------------------------------------------------------------
-# $Maintainer: Stephan Aiche $
-# $Authors: Stephan Aiche $
+# $Maintainer: David Rivkin $
+# $Authors: David Rivkin $
 # --------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 2.8.3 FATAL_ERROR)
-project("OpenMS_class_tests")
+project("OpenMS_class_tests_peakinvestigator_actions")
 
-#------------------------------------------------------------------------------
-# set new CMAKE_RUNTIME_OUTPUT_DIRECTORY for tests and remember old setting
-set(_TMP_CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+# --------------------------------------------------------------------------
+# add include directories
+include_directories(SYSTEM ${OpenMS_INCLUDE_DIRECTORIES} peakinvestigator/include)
 
-#------------------------------------------------------------------------------
-# add OpenSWATHAlgo specific tests
-add_subdirectory(openswathalgo)
+# --------------------------------------------------------------------------
+# list of available tests
+set(PI_action_tests
+  Parsing
+)
 
-#------------------------------------------------------------------------------
-# add OpenMS specific tests
-add_subdirectory(openms)
-
-#------------------------------------------------------------------------------
-# add OpenMS specific tests
-add_subdirectory(superhirn)
-
-#------------------------------------------------------------------------------
-# add OpenMS specific tests
-add_subdirectory(peakinvestigator)
-
-if(WITH_GUI)
-  #------------------------------------------------------------------------------
-  # add OpenMS_GUI specific tests
-  add_subdirectory(openms_gui)
-endif()
-
-#------------------------------------------------------------------------------
-# restore old CMAKE_RUNTIME_OUTPUT_DIRECTORY
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${_TMP_CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+# --------------------------------------------------------------------------
+# add targets for the executables
+foreach(i ${PI_action_tests})
+  add_executable(${i} ${i}.cpp)
+  target_link_libraries(${i} PeakInvestigatorImpl OpenMS)
+  add_test(${i} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${i})
+endforeach(i)

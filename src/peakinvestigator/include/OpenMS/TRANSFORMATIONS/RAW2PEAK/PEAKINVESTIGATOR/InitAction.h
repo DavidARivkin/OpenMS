@@ -66,8 +66,9 @@ private:
     int calibrationCount;
 
 public:
-    InitAction(QString versionOfApi, QString user, QString code, int ID, QString versionOfPi, int scanCount,
-               int maxPoints, int minMass, int maxMass, int calibrationCount);
+    InitAction(QString versionOfApi, QString user, QString code,
+               int ID, QString versionOfPi, int scanCount,
+               int maxPoints, int minMass, int maxMass, int calibrationCount = 0);
 
     QString buildQuery();
 
