@@ -33,7 +33,10 @@
 // --------------------------------------------------------------------------
 //
 
-#include "OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/BaseAction.h"
+#ifndef STATUS_ACTION_H
+#define STATUS_ACTION_H
+
+#include "BaseAction.h"
 
 namespace OpenMS {
 
@@ -77,3 +80,5 @@ public:
 };
 
 }
+
+#endif
