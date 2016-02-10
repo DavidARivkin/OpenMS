@@ -68,8 +68,8 @@ void BaseAction::processResponse(QString response) {
 
     QJson::Parser parser;
     bool ok;
-    responseObject = (QVariantMap) parser.parse(response.toUtf8(), &ok).toMap();
-    // Test ok to see if this was parsers, throw an exception of not ok
+    responseObject = parser.parse(response.toUtf8(), &ok).toMap();
+    // Test ok to see if this was parsers, throw an exception if not ok
     if(ok == false)
         throw std::runtime_error("Unable to parse the response as JSON data.");
 }
