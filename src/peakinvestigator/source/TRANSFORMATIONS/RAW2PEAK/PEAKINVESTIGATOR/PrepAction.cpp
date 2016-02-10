@@ -93,7 +93,7 @@ int PrepAction::getScanCount() {
 QString PrepAction::getPercentComplete() {
     preCheck();
     return getStringAttribute("PercentComplete");
-};
+}
 
 QString PrepAction::getMStype() {
     preCheck();

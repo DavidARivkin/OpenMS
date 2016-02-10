@@ -33,6 +33,9 @@
 // --------------------------------------------------------------------------
 //
 
+#ifndef RUN_ACTION_H
+#define RUN_ACTION_H
+
 #include "BaseAction.h"
 
 namespace OpenMS {
@@ -75,3 +78,5 @@ public:
 };
 
 }
+
+#endif

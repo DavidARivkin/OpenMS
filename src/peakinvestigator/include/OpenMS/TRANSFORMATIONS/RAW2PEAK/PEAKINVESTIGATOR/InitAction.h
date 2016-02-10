@@ -33,6 +33,9 @@
 // --------------------------------------------------------------------------
 //
 
+#ifndef INIT_ACTION_H
+#define INIT_ACTION_H
+
 #include "BaseAction.h"
 #include <QString>
 #include <QStringList>
@@ -88,3 +91,5 @@ public:
 };
 
 }
+
+#endif

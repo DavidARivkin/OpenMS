@@ -33,6 +33,9 @@
 // --------------------------------------------------------------------------
 //
 
+#ifndef PIVERSIONS_ACTION_H
+#define PIVERSIONS_ACTION_H
+
 #include "BaseAction.h"
 
 namespace OpenMS {
@@ -60,3 +63,5 @@ public:
 };
 
 }
+
+#endif

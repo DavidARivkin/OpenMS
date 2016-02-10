@@ -33,6 +33,9 @@
 // --------------------------------------------------------------------------
 //
 
+#ifndef BASE_ACTION_H
+#define BASE_ACTION_H
+
 #include <QDate>
 #include <QString>
 #include <QVariantMap>
@@ -82,3 +85,4 @@ public:
 };
 
 }
+#endif

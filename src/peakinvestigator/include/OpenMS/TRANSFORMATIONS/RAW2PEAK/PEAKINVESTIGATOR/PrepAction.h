@@ -33,6 +33,9 @@
 // --------------------------------------------------------------------------
 //
 
+#ifndef PREP_ACTION_H
+#define PREP_ACTION_H
+
 #include "BaseAction.h"
 
 namespace OpenMS {
@@ -72,3 +75,5 @@ public:
 };
 
 }
+
+#endif
