@@ -93,6 +93,7 @@ BOOST_AUTO_TEST_CASE(PiVersionsAction_response)
     QString response;
     PiVersionsAction *action = new PiVersionsAction(versionOfAPI, user, code);
     piVa->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
     cout << "Current Version:  " << action->getCurrentVersion()
          << "Last Used Version:  " << action->getLastUsedVersion()
          << endl << "Available Versions:  ";
@@ -131,6 +132,7 @@ BOOST_AUTO_TEST_CASE(InitAction_response)
     QString response;
     InitAction *action = new InitAction();
     action->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
     cout << "Job:  " << action->getJob()
          << "Project ID:  " << action->getProjectID(versionOfAPI, user, code,
                                                     ID, versionOfPi, scanCount,
@@ -172,6 +174,7 @@ BOOST_AUTO_TEST_CASE(SftpAction_response)
     SftpAction *action = new SftpAction(versionOfAPI, user, code,
                                         projectID);
     piVa->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
     cout << "Host:  " << action->getHost()
          << "Port:  " << action->getPort()
          << "Director:  " << action->getDirectory()
@@ -206,6 +209,7 @@ BOOST_AUTO_TEST_CASE(PrepAction_response)
     PrepAction *action = new PrepAction(versionOfAPI, user, code,
                                         projectID, filename);
     piVa->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
     cout << "Filename:  " << action->getFilename();
     switch(action->getStatus) {
     case PrepAction::Analyzing :
@@ -253,6 +257,7 @@ BOOST_AUTO_TEST_CASE(RunAction_response)
     RunAction *action = new RunAction(versionOfAPI, user, code,
                                       job, RTO, inputFilename, calibrationFilename);
     piVa->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
     cout << "Job:  " << action->getJob();
 
     delete action;
@@ -282,6 +287,7 @@ BOOST_AUTO_TEST_CASE(StatusAction_response)
     StatusAction *action = new StatusAction(versionOfAPI, user, code,
                                             jobID);
     piVa->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
     switch(action->getStatus()) {
     case StatusAction::Running :
         cout << "Status:  Running!" << endl;
@@ -324,6 +330,7 @@ BOOST_AUTO_TEST_CASE(DeleteAction_response)
     DeleteAction *action = new DeleteAction(versionOfAPI, user, code,
                                             jobID);
     piVa->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
     switch(action->getStatus()) {
     case StatusAction::Running :
         cout << "Status:  Running!" << endl;
