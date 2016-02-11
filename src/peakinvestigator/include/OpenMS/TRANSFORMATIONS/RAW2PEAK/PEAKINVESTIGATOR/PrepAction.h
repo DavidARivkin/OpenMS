@@ -48,7 +48,7 @@ private:
     QString filename;
 	
 public:
-    PrepAction(QString versionOfApi, QString user, QString code, int projectID, QString filename);
+    PrepAction(QString user, QString code, int projectID, QString filename);
 
     QString buildQuery();
 

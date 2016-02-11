@@ -53,9 +53,9 @@ const QLatin1String RunAction::action("RUN");
          * @param inputFilename
          * @param calibrationFilename
          */
-RunAction::RunAction(QString versionOfApi, QString user, QString code, QString job, QString RTO,
+RunAction::RunAction(QString user, QString code, QString job, QString RTO,
                      QString inputFilename, QString calibrationFilename) :
-    BaseAction(versionOfApi, user, code)
+    BaseAction(user, code)
 {
 
     this->job = job;

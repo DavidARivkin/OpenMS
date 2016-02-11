@@ -43,8 +43,8 @@ namespace OpenMS {
 
 const QLatin1String StatusAction::action("STATUS");
 
-StatusAction::StatusAction(QString versionOfApi, QString user, QString code, QString jobID) :
-    BaseAction(versionOfApi, user, code)
+StatusAction::StatusAction(QString user, QString code, QString jobID) :
+    BaseAction(user, code)
 {
 
     this->jobID = jobID;

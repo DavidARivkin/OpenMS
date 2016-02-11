@@ -41,7 +41,8 @@
 #include <QVariantMap>
 #include <QStringList>
 
-#define DATE_FORMAT = "yyyy-MM-dd kk:mm:ss";
+#define VERSION_OF_API "3.0"
+#define DATE_FORMAT "yyyy-MM-dd kk:mm:ss"
 
 namespace OpenMS {
 
@@ -56,7 +57,7 @@ protected:
     QVariantMap responseObject;
 
 public:
-    BaseAction(QString versionOfApi, QString user, QString code);
+    BaseAction(QString user, QString code);
 
     virtual QString buildQuery();
 

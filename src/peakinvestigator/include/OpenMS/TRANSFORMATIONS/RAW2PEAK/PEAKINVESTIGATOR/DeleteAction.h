@@ -46,7 +46,7 @@ private:
     QString jobID;
 
 public:
-    DeleteAction(QString versionOfApi, QString user, QString code, QString jobID);
+    DeleteAction(QString user, QString code, QString jobID);
 
     QString buildQuery();
 

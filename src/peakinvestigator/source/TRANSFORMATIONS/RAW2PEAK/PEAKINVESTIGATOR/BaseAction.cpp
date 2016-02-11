@@ -46,8 +46,8 @@
 namespace OpenMS
 {
 
-BaseAction::BaseAction(QString versionOfApi, QString user, QString code) {
-    this->versionOfApi = versionOfApi;
+BaseAction::BaseAction(QString user, QString code) {
+    this->versionOfApi = VERSION_OF_API;
     this->user = user;
     this->code = code;
 }

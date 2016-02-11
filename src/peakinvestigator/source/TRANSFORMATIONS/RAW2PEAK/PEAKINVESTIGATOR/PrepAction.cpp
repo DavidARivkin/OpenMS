@@ -43,8 +43,8 @@ namespace OpenMS {
 
 const QLatin1String PrepAction::action("PREP");
 
-PrepAction::PrepAction(QString versionOfApi, QString user, QString code, int projectID, QString filename) :
-    BaseAction(versionOfApi, user, code)
+PrepAction::PrepAction(QString user, QString code, int projectID, QString filename) :
+    BaseAction(user, code)
 {
 
     this->projectID = projectID;

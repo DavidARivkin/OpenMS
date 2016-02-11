@@ -47,7 +47,7 @@ private:
     QString jobID;
 
 public:
-    StatusAction(QString versionOfApi, QString user, QString code, QString jobID);
+    StatusAction(QString user, QString code, QString jobID);
 
     QString buildQuery();
 

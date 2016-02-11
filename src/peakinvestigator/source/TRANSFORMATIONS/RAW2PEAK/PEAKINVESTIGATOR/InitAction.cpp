@@ -47,9 +47,9 @@ const long ResponseTimeCosts::serialVersionUID = 1L;
 
 const QLatin1String InitAction::action("INIT");
 
-InitAction::InitAction(QString versionOfApi, QString user, QString code, int ID, QString versionOfPi, int scanCount,
+InitAction::InitAction(QString user, QString code, int ID, QString versionOfPi, int scanCount,
                        int maxPoints, int minMass, int maxMass, int calibrationCount) :
-    BaseAction(versionOfApi, user, code)
+    BaseAction(user, code)
 {
 
      this->ID = ID;

@@ -69,7 +69,7 @@ private:
     int calibrationCount;
 
 public:
-    InitAction(QString versionOfApi, QString user, QString code,
+    InitAction(QString user, QString code,
                int ID, QString versionOfPi, int scanCount,
                int maxPoints, int minMass, int maxMass, int calibrationCount = 0);
 

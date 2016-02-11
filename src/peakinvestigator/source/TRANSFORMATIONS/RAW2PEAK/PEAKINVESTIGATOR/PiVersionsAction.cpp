@@ -44,8 +44,8 @@ namespace OpenMS
 
 const QLatin1String PiVersionsAction::action("PI_VERSIONS");
 
-PiVersionsAction::PiVersionsAction(QString versionOfApi, QString user, QString code) :
-    BaseAction(versionOfApi, user, code)
+PiVersionsAction::PiVersionsAction(QString user, QString code) :
+    BaseAction(user, code)
 {
 }
 

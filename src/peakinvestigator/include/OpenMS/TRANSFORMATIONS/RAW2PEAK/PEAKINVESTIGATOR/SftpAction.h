@@ -48,7 +48,7 @@ private:
     int projectID;
 
 public:
-    SftpAction(QString versionOfApi, QString user, QString code, int projectID);
+    SftpAction(QString user, QString code, int projectID);
 
     QString buildQuery();
 

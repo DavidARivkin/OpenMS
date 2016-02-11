@@ -60,7 +60,7 @@ public:
 	 * @param inputFilename
 	 * @param calibrationFilename
 	 */
-    RunAction(QString versionOfApi, QString user, QString code, QString job, QString RTO,
+    RunAction(QString user, QString code, QString job, QString RTO,
                         QString inputFilename, QString calibrationFilename);
 
     QString buildQuery();

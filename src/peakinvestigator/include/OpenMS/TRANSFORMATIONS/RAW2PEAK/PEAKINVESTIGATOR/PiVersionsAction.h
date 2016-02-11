@@ -45,7 +45,7 @@ class PiVersionsAction : public BaseAction {
         static const QLatin1String action;
 
 public:
-    PiVersionsAction(QString versionOfApi, QString user, QString code);
+    PiVersionsAction(QString user, QString code);
 
     QString buildQuery();
 

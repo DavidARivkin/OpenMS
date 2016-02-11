@@ -44,8 +44,8 @@ namespace OpenMS
 
 const QLatin1String DeleteAction::action("DELETE");
 
-DeleteAction::DeleteAction(QString versionOfApi, QString user, QString code, QString jobID) :
-    BaseAction(versionOfApi, user, code)
+DeleteAction::DeleteAction(QString user, QString code, QString jobID) :
+    BaseAction(user, code)
 {
 
     this->jobID = jobID;

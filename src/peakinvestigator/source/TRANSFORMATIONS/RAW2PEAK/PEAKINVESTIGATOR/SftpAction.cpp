@@ -43,8 +43,8 @@ namespace OpenMS {
 
 const QLatin1String SftpAction::action("SFTP");
 
-SftpAction::SftpAction(QString versionOfApi, QString user, QString code, int projectID) :
-    BaseAction(versionOfApi, user, code) {
+SftpAction::SftpAction(QString user, QString code, int projectID) :
+    BaseAction(user, code) {
 
     this->projectID = projectID;
 }
