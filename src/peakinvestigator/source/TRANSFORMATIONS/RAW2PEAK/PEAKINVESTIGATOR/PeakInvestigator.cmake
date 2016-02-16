@@ -122,6 +122,7 @@ source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES $
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT" FILES ${sources_format})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\\INTERNAL" FILES ${sources_format_internal})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${sources_system})
+source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${sources_actions})
 #if(WITH_GUI)
 #source_group("Source Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${peakinvestigator_dlg})
 #endif(WITH_GUI)

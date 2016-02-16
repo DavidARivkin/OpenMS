@@ -73,7 +73,9 @@ QString StatusAction::getJob() {
 StatusAction::Status StatusAction::getStatus() {
     preCheck();
     QString status = getStringAttribute("Status");
-    if(status == "Running")
+    if(status == "Preparing")
+        return Preparing;
+    else if (status == "Running")
         return Running;
     else if(status == "Done")
         return Done;

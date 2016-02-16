@@ -40,7 +40,7 @@
 
 namespace OpenMS {
 
-class PiVersionsAction : public BaseAction {
+class PEAKINVESTIGATORIMPL_DLLAPI PiVersionsAction : public BaseAction {
         private:
         static const QLatin1String action;
 

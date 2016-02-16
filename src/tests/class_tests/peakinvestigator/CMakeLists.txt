@@ -37,7 +37,8 @@ project("OpenMS_class_tests_peakinvestigator_actions")
 
 # --------------------------------------------------------------------------
 # add include directories
-include_directories(SYSTEM ${OpenMS_INCLUDE_DIRECTORIES} peakinvestigator/include)
+message(STATUS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/../../../peakinvestigator/include)
+include_directories(SYSTEM ${OpenMS_INCLUDE_DIRECTORIES} ../../../peakinvestigator/include ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/../../../peakinvestigator/include)
 
 # --------------------------------------------------------------------------
 # list of available tests

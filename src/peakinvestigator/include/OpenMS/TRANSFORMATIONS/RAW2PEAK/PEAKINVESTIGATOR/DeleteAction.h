@@ -40,7 +40,7 @@
 
 namespace OpenMS {
 
-class DeleteAction : BaseAction {
+class PEAKINVESTIGATORIMPL_DLLAPI DeleteAction : public BaseAction {
 private:
     static const QLatin1String action;
     QString jobID;

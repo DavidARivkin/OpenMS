@@ -45,7 +45,7 @@
 
 namespace OpenMS {
 
-class ResponseTimeCosts : public QMap<QString, double> {
+class PEAKINVESTIGATORIMPL_DLLAPI ResponseTimeCosts : public QMap<QString, double> {
 
 private:
     static const long serialVersionUID;
@@ -56,7 +56,7 @@ public:
     double getCost(QString responseTimeObjective);
 };
 
-class InitAction : public BaseAction {
+class PEAKINVESTIGATORIMPL_DLLAPI InitAction : public BaseAction {
 private:
     static const QLatin1String action;
 

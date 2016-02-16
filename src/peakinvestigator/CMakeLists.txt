@@ -103,7 +103,6 @@ if (MSVC)
   set_target_properties(OpenMS_GUI PROPERTIES LINK_FLAGS ${GUI_lnk_flags}) ## allow multiple definitions of symbols (e.g. from template instanciations or STL-derived classes)
 endif()
 
-
 #------------------------------------------------------------------------------
 # add the library
 openms_add_library(TARGET_NAME PeakInvestigatorImpl

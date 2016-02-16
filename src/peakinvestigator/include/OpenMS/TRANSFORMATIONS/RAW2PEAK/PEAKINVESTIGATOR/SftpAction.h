@@ -40,7 +40,7 @@
 
 namespace OpenMS {
 
-class SftpAction : BaseAction {
+class PEAKINVESTIGATORIMPL_DLLAPI SftpAction : public BaseAction {
 private:
     static const QLatin1String action;
 

@@ -40,7 +40,7 @@
 
 namespace OpenMS {
 
-class StatusAction : BaseAction {
+class PEAKINVESTIGATORIMPL_DLLAPI StatusAction : public BaseAction {
 private:
     static const QLatin1String action;
 
@@ -51,7 +51,7 @@ public:
 
     QString buildQuery();
 
-    enum Status { Running, Done, Deleted };
+    enum Status { Preparing, Running, Done, Deleted };
 
 private:
     void preCheck();

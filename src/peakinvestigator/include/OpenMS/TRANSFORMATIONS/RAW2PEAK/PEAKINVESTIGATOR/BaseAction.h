@@ -36,17 +36,20 @@
 #ifndef BASE_ACTION_H
 #define BASE_ACTION_H
 
+#include "OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigatorImplConfig.h"
+
 #include <QDate>
 #include <QString>
 #include <QVariantMap>
 #include <QStringList>
 
-#define VERSION_OF_API "3.0"
+
+#define VERSION_OF_API "3.1"
 #define DATE_FORMAT "yyyy-MM-dd kk:mm:ss"
 
 namespace OpenMS {
 
-class BaseAction {
+class PEAKINVESTIGATORIMPL_DLLAPI BaseAction {
 private:
 
     QString versionOfApi;
@@ -58,6 +61,8 @@ protected:
 
 public:
     BaseAction(QString user, QString code);
+
+    virtual ~BaseAction() {;}
 
     virtual QString buildQuery();
 

@@ -123,5 +123,19 @@ int InitAction::getErrorCode() {
     return BaseAction::getErrorCode();
 }
 
+QStringList ResponseTimeCosts::getRTOs() {
+    QStringList sList;
+
+    foreach(QString rto, keys()) {
+        sList << rto;
+    }
+
+    return sList;
+}
+
+double ResponseTimeCosts::getCost(QString responseTimeObjective) {
+    return value(responseTimeObjective);
+}
+
 }
 

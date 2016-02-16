@@ -75,178 +75,178 @@ START_TEST(Parsing, "$Id$")
 BOOST_AUTO_TEST_CASE(PiVersionsAction_build_query)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password");
 
-    PiVersionsAction *action = new PiVersionsAction(versionOfAPI, user, code);
-    cout << "Built Query:  " << action->buildQuery() << endl;
+    PiVersionsAction *action = new PiVersionsAction(user, code);
+    cout << "Built Query:  " << action->buildQuery().toUtf8().constData() << endl;
     delete action;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(PiVersionsAction_response)
 {
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password");
 
     QString response;
-    PiVersionsAction *action = new PiVersionsAction(versionOfAPI, user, code);
-    piVa->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
-    cout << "Current Version:  " << action->getCurrentVersion()
-         << "Last Used Version:  " << action->getLastUsedVersion()
+    PiVersionsAction *action = new PiVersionsAction(user, code);
+    action->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    cout << "Current Version:  " << action->getCurrentVersion().toUtf8().constData()
+         << "Last Used Version:  " << action->getLastUsedVersion().toUtf8().constData()
          << endl << "Available Versions:  ";
 
     foreach(QString ver, action->getVersions()) {
-        cout << ver << ", ";
+        cout << ver.toUtf8().constData() << ", ";
     }
     cout << endl;
     delete action;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(InitAction_build_query)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password"),
             versionOfPi("1.2");
     int ID(1234), scanCount(100), maxPoints(1000), minMass(10), maxMass(750), calibrationCount(100);
 
-    InitAction *action = new InitAction(versionOfAPI, user, code,
+    InitAction *action = new InitAction(user, code,
                                         ID, versionOfPi, scanCount,
                                         maxPoints, minMass, maxMass, calibrationCount);
-    cout << "Built Query:  " << action->buildQuery() << endl;
+    cout << "Built Query:  " << action->buildQuery().toUtf8().constData() << endl;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(InitAction_response)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password"),
             versionOfPi("1.2");
     int ID(1234), scanCount(100), maxPoints(1000), minMass(10), maxMass(750), calibrationCount(100);
 
     QString response;
-    InitAction *action = new InitAction();
+    InitAction *action = new InitAction(user, code,
+                                        ID, versionOfPi, scanCount,
+                                        maxPoints, minMass, maxMass, calibrationCount);
     action->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
-    cout << "Job:  " << action->getJob()
-         << "Project ID:  " << action->getProjectID(versionOfAPI, user, code,
-                                                    ID, versionOfPi, scanCount,
-                                                    maxPoints, minMass, maxMass, calibrationCount);
-
-    foreach(QString inst, action->getEstimatedCosts().keys()) {
-        cout << "Instrument:  " << inst < endl;
-        foreach(ResponseTimeCosts costs, action->getEstimatedCosts.value(inst)) {
+    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    cout << "Job:  " << action->getJob().toUtf8().constData()
+         << "Project ID:  " << QString::number(action->getProjectId()).toUtf8().constData();
+    QMap<QString, ResponseTimeCosts> RTOMap = action->getEstimatedCosts();
+    foreach(QString inst, RTOMap.keys()) {
+        cout << "Instrument:  " << inst.toUtf8().constData() << endl;
+        foreach(ResponseTimeCosts costs, RTOMap) {
             foreach(QString rto, costs.getRTOs()) {
-                cout << " RTO:  " << rto << " Cost:  " << costs.getCost(rto) << endl;
+                cout << " RTO:  " << rto.toUtf8().constData() << " Cost:  " << QString::number(costs.getCost(rto)).toUtf8().constData() << endl;
             }
         }
-        cout << e;
+        cout << endl;
     }
     delete action;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(SftpAction_build_query)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password");
     int projectID(1234);
 
-    SftpAction *action = new SftpAction(versionOfAPI, user, code,
+    SftpAction *action = new SftpAction(user, code,
                                         projectID);
-    cout << "Built Query:  " << action->buildQuery() << endl;
+    cout << "Built Query:  " << action->buildQuery().toUtf8().constData() << endl;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(SftpAction_response)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password");
     int projectID(1234);
     QString response;
-    SftpAction *action = new SftpAction(versionOfAPI, user, code,
+    SftpAction *action = new SftpAction(user, code,
                                         projectID);
-    piVa->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
-    cout << "Host:  " << action->getHost()
-         << "Port:  " << action->getPort()
-         << "Director:  " << action->getDirectory()
-         << "Username:  " << action->getSftpUsername()
-         << "Password:  " << action->getPassword();
+    action->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    cout << "Host:  " << action->getHost().toUtf8().constData()
+         << "Port:  " << QString::number(action->getPort()).toUtf8().constData()
+         << "Director:  " << action->getDirectory().toUtf8().constData()
+         << "Username:  " << action->getSftpUsername().toUtf8().constData()
+         << "Password:  " << action->getSftpPassword().toUtf8().constData();
 
     delete action;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(PrepAction_build_query)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password"),
             filename("test.tar");
     int projectID(1234);
 
-    PrepAction *action = new PrepAction(versionOfAPI, user, code,
+    PrepAction *action = new PrepAction(user, code,
                                         projectID, filename);
-    cout << "Built Query:  " << action->buildQuery() << endl;
+    cout << "Built Query:  " << action->buildQuery().toUtf8().constData() << endl;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(PrepAction_response)
 {
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password"),
             filename("test.tar");
+    int projectID(1234);
 
     QString response;
-    PrepAction *action = new PrepAction(versionOfAPI, user, code,
+    PrepAction *action = new PrepAction(user, code,
                                         projectID, filename);
-    piVa->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
-    cout << "Filename:  " << action->getFilename();
-    switch(action->getStatus) {
+    action->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    cout << "Filename:  " << action->getFilename().toUtf8().constData();
+    switch(action->getStatus()) {
     case PrepAction::Analyzing :
-        cout << "Analyzing! % Complete:" << action->getPercentComplete() << endl;
+        cout << "Analyzing! % Complete:" << action->getPercentComplete().toUtf8().constData() << endl;
         break;
     case PrepAction::Ready :
-        cout << "Ready!  Scan Count:  " << action->getScanCount()
-             << "MS Type:  " << action->getMSType() << endl;
+        cout << "Ready!  Scan Count:  " << QString::number(action->getScanCount()).toUtf8().constData()
+             << "MS Type:  " << action->getMStype().toUtf8().constData() << endl;
         break;
     case PrepAction::Error :
-        count << "Error!  " << action->getErrorMessage() << endl;
+        cout << "Error!  " << action->getErrorMessage().toUtf8().constData() << endl;
         break;
     }
 
     delete action;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(RunAction_build_query)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password"),
             job("P1234-1234"),
             RTO("RTO-24"),
             inputFilename("P1234-1234.tar"),
             calibrationFilename("P1234-1234_calib.tar");
 
-    RunAction *action = new RunAction(versionOfAPI, user, code,
+    RunAction *action = new RunAction(user, code,
                                       job, RTO, inputFilename, calibrationFilename);
-    cout << "Built Query:  " << action->buildQuery() << endl;
+    cout << "Built Query:  " << action->buildQuery().toUtf8().constData() << endl;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(RunAction_response)
 {
-    QString versionOfAPI("3.0"),
-            user("username"),
+    QString user("username"),
             code("password"),
             job("P1234-1234"),
             RTO("RTO-24"),
@@ -254,41 +254,44 @@ BOOST_AUTO_TEST_CASE(RunAction_response)
             calibrationFilename("P1234-1234_calib.tar");
 
     QString response;
-    RunAction *action = new RunAction(versionOfAPI, user, code,
+    RunAction *action = new RunAction(user, code,
                                       job, RTO, inputFilename, calibrationFilename);
-    piVa->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
-    cout << "Job:  " << action->getJob();
+    action->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    cout << "Job:  " << action->getJob().toUtf8().constData();
 
     delete action;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(StatusAction_build_query)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
-            code("password")
+    QString user("username"),
+            code("password"),
             jobID("P1234-1234");
 
-    StatusAction *action = new StatusAction(versionOfAPI, user, code,
+    StatusAction *action = new StatusAction(user, code,
                                             jobID);
-    cout << "Built Query:  " << action->buildQuery() << endl;
+    cout << "Built Query:  " << action->buildQuery().toUtf8().constData() << endl;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(StatusAction_response)
 {
-    QString versionOfAPI("3.0"),
-            user("username"),
-            code("password")
+    QString user("username"),
+            code("password"),
             jobID("P1234-1234");
 
     QString response;
-    StatusAction *action = new StatusAction(versionOfAPI, user, code,
+    StatusAction *action = new StatusAction( user, code,
                                             jobID);
-    piVa->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
+    action->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!action->hasError())
     switch(action->getStatus()) {
+    case StatusAction::Preparing :
+        cout << "Status:  Preparing." << endl;
+        break;
     case StatusAction::Running :
         cout << "Status:  Running!" << endl;
         break;
@@ -297,58 +300,46 @@ BOOST_AUTO_TEST_CASE(StatusAction_response)
         break;
     case StatusAction::Done:
         cout << "Status:  Done!" << endl;
-        cout << "Input Scans:  " << action->getNumberOfInputScans()
-             << "Complete Scans:  " << action->getNumberOfCompleteScans()
-             << "Actual Cost:  " << action->getActualCost()
-             << "Log filename:  " << action->getLogFilename()
-             << "Results filename:  " << action->getResultsFilename();
+        cout << "Input Scans:  " << QString::number(action->getNumberOfInputScans()).toUtf8().constData()
+             << "Complete Scans:  " << QString::number(action->getNumberOfCompleteScans()).toUtf8().constData()
+             << "Actual Cost:  " << QString::number(action->getActualCost()).toUtf8().constData()
+             << "Log filename:  " << action->getLogFilename().toUtf8().constData()
+             << "Results filename:  " << action->getResultsFilename().toUtf8().constData();
     }
     delete action;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(DeleteAction_build_query)
 {
 
-    QString versionOfAPI("3.0"),
-            user("username"),
-            code("password")
+    QString user("username"),
+            code("password"),
             jobID("P1234-1234");
 
-    DeleteAction *action = new DeleteAction(versionOfAPI, user, code,
+    DeleteAction *action = new DeleteAction(user, code,
                                             jobID);
-    cout << "Built Query:  " << action->buildQuery() << endl;
+    cout << "Built Query:  " << action->buildQuery().toUtf8().constData() << endl;
 }
+END_SECTION
 
 BOOST_AUTO_TEST_CASE(DeleteAction_response)
 {
 
     QString response;
-    QString versionOfAPI("3.0"),
-            user("username"),
-            code("password")
+    QString user("username"),
+            code("password"),
             jobID("P1234-1234");
-    DeleteAction *action = new DeleteAction(versionOfAPI, user, code,
+    DeleteAction *action = new DeleteAction(user, code,
                                             jobID);
-    piVa->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!piVA->hasError())
-    switch(action->getStatus()) {
-    case StatusAction::Running :
-        cout << "Status:  Running!" << endl;
-        break;
-    case StatusAction::Deleted:
-        cout << "Status:  Deleted!" << endl;
-        break;
-    case StatusAction::Done:
-        cout << "Job:  " << action->getJob()
-             << "Date:  " << action->getDate();
-    }
+    action->processResponse(response);
+    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+
+    cout << "Job:  " << action->getJob().toUtf8().constData()
+         << "Date:  " << action->getDate().toString().toUtf8().constData();
     delete action;
 }
-
-
-
 END_SECTION
-
 
 /////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////
