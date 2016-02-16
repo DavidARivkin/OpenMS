@@ -72,7 +72,7 @@ QString RunAction::buildQuery() {
             % QLatin1String("InputFile=") % inputFilename;
 
     if (calibrationFilename != NULL) {
-        builder = builder % QLatin1String("&CalibrationFile=") % calibrationFilename % QChar('&');
+        builder = builder % QLatin1String("&CalibrationFile=") % calibrationFilename;
     }
 
     return builder;

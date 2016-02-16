@@ -75,7 +75,7 @@ QString PrepAction::getFilename() {
 PrepAction::Status PrepAction::getStatus() {
     preCheck();
     QString status = getStringAttribute("Status");
-    if(status == "Analyszing")
+    if(status == "Analyzing")
         return Analyzing;
     else if(status == "Ready")
         return Ready;

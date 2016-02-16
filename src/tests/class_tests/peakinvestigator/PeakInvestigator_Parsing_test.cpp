@@ -89,10 +89,10 @@ BOOST_AUTO_TEST_CASE(PiVersionsAction_response)
     QString user("username"),
             code("password");
 
-    QString response;
+    QString response("{\"Action\":\"PI_VERSIONS\",\"Current\":\"1.2\",\"LastUsed\":\"\",\"Count\":2,\"Versions\":[\"1.2\",\"1.0.0\"]}");
     PiVersionsAction *action = new PiVersionsAction(user, code);
     action->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    TEST_EQUAL(action->hasError(), false)
     cout << "Current Version:  " << action->getCurrentVersion().toUtf8().constData()
          << "Last Used Version:  " << action->getLastUsedVersion().toUtf8().constData()
          << endl << "Available Versions:  ";
@@ -128,21 +128,20 @@ BOOST_AUTO_TEST_CASE(InitAction_response)
             versionOfPi("1.2");
     int ID(1234), scanCount(100), maxPoints(1000), minMass(10), maxMass(750), calibrationCount(100);
 
-    QString response;
+    QString response("{\"Action\":\"INIT\",\"Job\":\"V-504.1461\",\"SubProjectID\":504,\"Funds\":115.01,\"EstimatedCost\":{\"TOF\":{\"RTO-24\":0.6},\"Orbitrap\":{\"RTO-24\":0.85},\"IonTrap\":{\"RTO-24\":1.02}}}");
     InitAction *action = new InitAction(user, code,
                                         ID, versionOfPi, scanCount,
                                         maxPoints, minMass, maxMass, calibrationCount);
     action->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    TEST_EQUAL(action->hasError(), false)
     cout << "Job:  " << action->getJob().toUtf8().constData()
          << "Project ID:  " << QString::number(action->getProjectId()).toUtf8().constData();
     QMap<QString, ResponseTimeCosts> RTOMap = action->getEstimatedCosts();
     foreach(QString inst, RTOMap.keys()) {
         cout << "Instrument:  " << inst.toUtf8().constData() << endl;
-        foreach(ResponseTimeCosts costs, RTOMap) {
-            foreach(QString rto, costs.getRTOs()) {
-                cout << " RTO:  " << rto.toUtf8().constData() << " Cost:  " << QString::number(costs.getCost(rto)).toUtf8().constData() << endl;
-            }
+        ResponseTimeCosts costs = RTOMap.value(inst);
+        foreach(QString rto, costs.getRTOs()) {
+            cout << " RTO:  " << rto.toUtf8().constData() << " Cost:  " << QString::number(costs.getCost(rto)).toUtf8().constData() << endl;
         }
         cout << endl;
     }
@@ -169,11 +168,11 @@ BOOST_AUTO_TEST_CASE(SftpAction_response)
     QString user("username"),
             code("password");
     int projectID(1234);
-    QString response;
+    QString response("{\"Action\":\"SFTP\",\"Host\":\"peakinvestigator.veritomyx.com\",\"Port\":22022,\"Directory\":\"\\files\",\"Login\":\"V504\",\"Password\":\"cB34lxCH0anR952gu\"}");
     SftpAction *action = new SftpAction(user, code,
                                         projectID);
     action->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    TEST_EQUAL(action->hasError(), false)
     cout << "Host:  " << action->getHost().toUtf8().constData()
          << "Port:  " << QString::number(action->getPort()).toUtf8().constData()
          << "Director:  " << action->getDirectory().toUtf8().constData()
@@ -205,11 +204,11 @@ BOOST_AUTO_TEST_CASE(PrepAction_response)
             filename("test.tar");
     int projectID(1234);
 
-    QString response;
+    QString response("{\"Action\":\"PREP\",\"File\":\"WatersQ-TOF.tar\",\"Status\":\"Analyzing\"}");
     PrepAction *action = new PrepAction(user, code,
                                         projectID, filename);
     action->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    TEST_EQUAL(action->hasError(), false)
     cout << "Filename:  " << action->getFilename().toUtf8().constData();
     switch(action->getStatus()) {
     case PrepAction::Analyzing :
@@ -253,11 +252,11 @@ BOOST_AUTO_TEST_CASE(RunAction_response)
             inputFilename("P1234-1234.tar"),
             calibrationFilename("P1234-1234_calib.tar");
 
-    QString response;
+    QString response("{\"Action\":\"RUN\",\"Job\":\"P-504.1463\"}");
     RunAction *action = new RunAction(user, code,
                                       job, RTO, inputFilename, calibrationFilename);
     action->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    TEST_EQUAL(action->hasError(), false)
     cout << "Job:  " << action->getJob().toUtf8().constData();
 
     delete action;
@@ -283,11 +282,11 @@ BOOST_AUTO_TEST_CASE(StatusAction_response)
             code("password"),
             jobID("P1234-1234");
 
-    QString response;
+    QString response("{\"Action\":\"STATUS\",\"Job\":\"P-504.5148\",\"Status\":\"Done\",\"Datetime\":\"2016-02-03 18:31:05\",\"ScansInput\":3,\"ScansComplete\":3,\"ActualCost\":0.36,\"JobLogFile\":\"/files/P-504.5148/P-504.5148.log.txt\",\"ResultsFile\":\"/files/P-504.5148/P-504.5148.mass_list.tar\"}");
     StatusAction *action = new StatusAction( user, code,
                                             jobID);
     action->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    TEST_EQUAL(action->hasError(), false)
     switch(action->getStatus()) {
     case StatusAction::Preparing :
         cout << "Status:  Preparing." << endl;
@@ -326,14 +325,14 @@ END_SECTION
 BOOST_AUTO_TEST_CASE(DeleteAction_response)
 {
 
-    QString response;
+    QString response("{\"Action\":\"DELETE\",\"Job\":\"P-504.4256\",\"Datetime\":\"2016-02-03 18:35:06\"}");
     QString user("username"),
             code("password"),
             jobID("P1234-1234");
     DeleteAction *action = new DeleteAction(user, code,
                                             jobID);
     action->processResponse(response);
-    TEST_POSTCONDITION_VIOLATED (!action->hasError())
+    TEST_EQUAL(action->hasError(), false)
 
     cout << "Job:  " << action->getJob().toUtf8().constData()
          << "Date:  " << action->getDate().toString().toUtf8().constData();
