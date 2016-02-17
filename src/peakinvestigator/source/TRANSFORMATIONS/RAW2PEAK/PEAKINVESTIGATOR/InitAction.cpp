@@ -61,7 +61,7 @@ InitAction::InitAction(QString user, QString code, int ID, QString versionOfPi, 
      this->calibrationCount = calibrationCount;
 }
 
-QString InitAction::buildQuery() {
+QString InitAction::buildQuery() const {
     QString builder = BaseAction::buildQuery()
     % QLatin1String("Action=") % action % QChar('&')
     % QLatin1String("ID=") % QString::number(ID) % QChar('&')

@@ -48,9 +48,9 @@ private:
     QString filename;
 	
 public:
-    PrepAction(QString user, QString code, int projectID, QString filename);
+    PrepAction(QString user=QString(), QString code=QString(), int projectID=0, QString filename=QString());
 
-    QString buildQuery();
+    QString buildQuery() const;
 
     enum Status { Analyzing, Ready, Error };
 

@@ -48,7 +48,7 @@ private:
 public:
     DeleteAction(QString user, QString code, QString jobID);
 
-    QString buildQuery();
+    QString buildQuery() const;
 
 private:
     void preCheck();

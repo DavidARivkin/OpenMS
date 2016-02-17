@@ -48,9 +48,9 @@ private:
     int projectID;
 
 public:
-    SftpAction(QString user, QString code, int projectID);
+    SftpAction(QString user=QString(), QString code=QString(), int projectID=0);
 
-    QString buildQuery();
+    QString buildQuery() const;
 
     void preCheck();
 

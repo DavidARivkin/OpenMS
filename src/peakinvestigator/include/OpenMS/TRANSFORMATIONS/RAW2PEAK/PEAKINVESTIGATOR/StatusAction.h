@@ -47,9 +47,9 @@ private:
     QString jobID;
 
 public:
-    StatusAction(QString user, QString code, QString jobID);
+    StatusAction(QString user=QString(), QString code=QString(), QString jobID=QString());
 
-    QString buildQuery();
+    QString buildQuery() const;
 
     enum Status { Preparing, Running, Done, Deleted };
 

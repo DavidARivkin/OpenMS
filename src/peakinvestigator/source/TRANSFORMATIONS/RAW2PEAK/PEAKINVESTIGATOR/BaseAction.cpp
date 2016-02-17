@@ -53,7 +53,7 @@ BaseAction::BaseAction(QString user, QString code) {
 }
 
 
-QString BaseAction::buildQuery() {
+QString BaseAction::buildQuery() const {
     QString builder = QLatin1String("Version=") % versionOfApi % QChar('&')
     % QLatin1String("User=") % user % QChar('&')
     % QLatin1String("Code=") % code % QChar('&');
@@ -61,7 +61,7 @@ QString BaseAction::buildQuery() {
     return builder;
 }
 
-void BaseAction::processResponse(QString response) {
+void BaseAction::processResponse(const QString response) {
     if (response.startsWith("<")) {
         throw std::runtime_error("Server response appears to be HTML/XML.");
     }
@@ -104,27 +104,27 @@ int BaseAction::getErrorCode() {
     return getIntAttribute("Error");
 }
 
-QString BaseAction::getStringAttribute(QString attribute) {
+QString BaseAction::getStringAttribute(QString attribute) const {
     return responseObject.value(attribute).toString();
 }
 
-int BaseAction::getIntAttribute(QString attribute) {
+int BaseAction::getIntAttribute(QString attribute) const {
     return responseObject.value(attribute).toInt();
 }
 
-long BaseAction::getLongAttribute(QString attribute) {
+long BaseAction::getLongAttribute(QString attribute) const {
     return responseObject.value(attribute).value<long>();
 }
 
-double BaseAction::getDoubleAttribute(QString attribute) {
+double BaseAction::getDoubleAttribute(QString attribute) const {
     return responseObject.value(attribute).toDouble();
 }
 
-QDate BaseAction::getDateAttribute(QString attribute){
+QDate BaseAction::getDateAttribute(QString attribute) const {
     return responseObject.value(attribute).toDate();
 }
 
-QStringList BaseAction::getStringArrayAttribute(QString attribute) {
+QStringList BaseAction::getStringArrayAttribute(QString attribute) const {
     return responseObject.value(attribute).toStringList();
 }
 

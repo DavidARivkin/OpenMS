@@ -60,10 +60,10 @@ public:
 	 * @param inputFilename
 	 * @param calibrationFilename
 	 */
-    RunAction(QString user, QString code, QString job, QString RTO,
-                        QString inputFilename, QString calibrationFilename);
+    RunAction(QString user=QString(), QString code=QString(), QString job=QString(), QString RTO=QString(),
+                        QString inputFilename=QString(), QString calibrationFilename=QString());
 
-    QString buildQuery();
+    QString buildQuery() const;
 
 private:
     void preCheck();

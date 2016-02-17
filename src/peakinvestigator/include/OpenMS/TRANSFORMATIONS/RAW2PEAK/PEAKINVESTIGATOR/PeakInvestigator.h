@@ -43,6 +43,7 @@
 #include <OpenMS/CONCEPT/ProgressLogger.h>
 #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigatorImplConfig.h>
 #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/FORMAT/TarFile.h>
+#include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/InitAction.h>
 
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtCore/QUrl>
@@ -264,7 +265,23 @@ protected:
      * specified with setParameters().
      * Returns the status and a JMap of the JSON answer from the PeakInvestigator servers
      */
-    QString PostAndParse_(QString params, QVariantMap &jMap, bool &ok);
+    QString Post_(QString params, bool &ok);
+
+#ifdef WITH_GUI
+    /** @brief getVersionDlg to ask the user which API version they would like to use.
+     *
+     * Asks the user to select a version of Peak Investigator to use for quotations and running.
+     * Returns true if the dialog is Accepted, and false if Canceled
+     */
+    bool getVersionDlg(void);
+
+    /** @brief getRTODlg to ask the user which API version they would like to use.
+     *
+     * Asks the user to select the RTO to use in the run.
+     * Returns true if the dialog is Accepted, and false if Canceled
+     */
+    bool getRTODlg(void);
+#endif
 
 ///@}
 //--------------------------------------------------------------------------------------------------------
@@ -274,8 +291,10 @@ protected:
     String server_; ///< @brief Veritomyx server address. Should be provided using the TOPP interface.
     String username_; ///< @brief Veritomyx account username. Should be provided using the TOPP interface.
     String password_; ///< @brief Veritomyx account password. Should be provided using the TOPP interface.
-    String account_number_; ///< @brief Veritomyx account number. Should be provided using the TOPP interface.
+    int account_number_; ///< @brief Veritomyx account number. Should be provided using the TOPP interface.
     QString job_; ///< @brief Job number obtained from public API during INIT request.
+    long    projectId_;
+    QMap<QString, ResponseTimeCosts> estimatedCosts_;
     QString funds_; ///< @brief Funds obtained from public API during INIT request.
     int min_mass_; ///< @brief Minimum mass to use.
     int max_mass_;  ///< @brief Maximum mass to use.

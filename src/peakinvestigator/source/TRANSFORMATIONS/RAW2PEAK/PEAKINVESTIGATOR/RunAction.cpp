@@ -64,7 +64,7 @@ RunAction::RunAction(QString user, QString code, QString job, QString RTO,
     this->calibrationFilename = calibrationFilename;
 }
 
-QString RunAction::buildQuery() {
+QString RunAction::buildQuery() const {
     QString builder = BaseAction::buildQuery()
             % QLatin1String("Action=") % action % QChar('&')
             % QLatin1String("Job=") % job % QChar('&')

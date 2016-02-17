@@ -52,7 +52,7 @@ PrepAction::PrepAction(QString user, QString code, int projectID, QString filena
 
 }
 
-QString PrepAction::buildQuery() {
+QString PrepAction::buildQuery() const {
     QString builder = BaseAction::buildQuery()
     % QLatin1String("Action=") % action + QChar('&')
     % QLatin1String("ID=") % QString::number(projectID) % QChar('&')

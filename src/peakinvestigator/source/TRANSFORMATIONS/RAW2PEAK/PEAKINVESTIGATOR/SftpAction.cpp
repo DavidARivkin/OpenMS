@@ -49,7 +49,7 @@ SftpAction::SftpAction(QString user, QString code, int projectID) :
     this->projectID = projectID;
 }
 
-QString SftpAction::buildQuery() {
+QString SftpAction::buildQuery() const {
     QString builder = BaseAction::buildQuery()
     % QLatin1String("Action=") % action % QChar('&')
     % QLatin1String("ID=") % QString::number(projectID);

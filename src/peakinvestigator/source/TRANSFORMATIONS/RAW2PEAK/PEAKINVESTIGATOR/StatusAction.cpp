@@ -50,7 +50,7 @@ StatusAction::StatusAction(QString user, QString code, QString jobID) :
     this->jobID = jobID;
 }
 
-QString StatusAction::buildQuery() {
+QString StatusAction::buildQuery() const {
     QString builder = BaseAction::buildQuery()
 
     % QLatin1String("Action=") % action % QChar('&')

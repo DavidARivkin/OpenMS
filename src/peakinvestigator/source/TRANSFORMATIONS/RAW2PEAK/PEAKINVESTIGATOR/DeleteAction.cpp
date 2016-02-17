@@ -44,14 +44,14 @@ namespace OpenMS
 
 const QLatin1String DeleteAction::action("DELETE");
 
-DeleteAction::DeleteAction(QString user, QString code, QString jobID) :
+DeleteAction::DeleteAction(QString user=QString(), QString code=QString(), QString jobID=QString()) :
     BaseAction(user, code)
 {
 
     this->jobID = jobID;
 }
 
-QString DeleteAction::buildQuery() {
+QString DeleteAction::buildQuery() const {
     QString builder = BaseAction::buildQuery()
             % QLatin1String("Action=") % action % QChar('&')
             % QLatin1String("Job=") % jobID;

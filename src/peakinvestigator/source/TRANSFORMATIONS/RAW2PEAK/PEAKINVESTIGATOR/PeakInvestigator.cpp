@@ -95,16 +95,13 @@ namespace OpenMS
     defaults_.setValue("server", "peakinvestigator.veritomyx.com", "Server address for PeakInvestigator (without https://)");
     defaults_.setValue("username", "USERNAME", "Username for account registered with Veritomyx");
     defaults_.setValue("password", "PASSWORD", "Password for account registered with Veritomyx");
-    defaults_.setValue("account", "0", "Account number");
+    defaults_.setValue("account", 0, "Account number");
 
-    defaults_.setValue("PIVersion", "1.2", "The version of the algorithm to run on the PeakInvestigator SaaS");
     defaults_.setValue("MinMass", 0, "Minimum mass to use");
     defaults_.setValue("MaxMass", INT_MAX, "Maximum mass to use");
 
-#ifndef WITH_GUI
     defaults_.setValue("RTO", "RTO-24", "Response Time Objective to use");
-    defaults_.setValue("PIVersion", "1.0.1", "Version of Peak Investigator to use");
-#endif
+    defaults_.setValue("PIVersion", "1.2", "Version of Peak Investigator to use");
 
     // write defaults into Param object param_
     defaultsToParam_();
@@ -128,10 +125,26 @@ namespace OpenMS
     {
 
     case SUBMIT:
-      if (!PIVersionsJob_() || !initializeJob_())
+      if (!PIVersionsJob_())
       {
         break;
       }
+#ifdef WITH_GUI
+      if(!getVersionDlg())
+      {
+          break;
+      }
+#endif
+      if (!initializeJob_())
+      {
+        break;
+      }
+#ifdef WITH_GUI
+      if(!getRTODlg())
+      {
+          break;
+      }
+#endif
 
       // Generate local and remote filenames of tar'd scans
       zipfilename = job_ + ".scans.tar";
@@ -153,7 +166,7 @@ namespace OpenMS
           sftp.setPassword(sftp_password_);
           sftp.setExpectedServerHash(VI_SSH_HASH);
 
-         if(sftp.uploadFile(localFilename, remoteFilename) && submitJob_())
+         if(sftp.uploadFile(localFilename, remoteFilename))
          {
              // Do PREP
             long timeWait = minutesTimeoutPrep;
@@ -163,6 +176,7 @@ namespace OpenMS
                 timeWait -= minutesCheckPrep;
             }
             // TODO:  If we timed out, report and error
+            submitJob_();
          }
       }
       break;
@@ -192,7 +206,7 @@ namespace OpenMS
       // Generate local and remote filenames of tar'd scans
       sftp_file_ = zipfilename = results_file_;
       localFilename = QDir::tempPath() + "/" + zipfilename;
-      remoteFilename = sftp_dir_ + "/" + account_number_.toQString() + "/" + zipfilename;
+      remoteFilename = sftp_dir_ + "/" + account_number_ + "/" + zipfilename;
 
       if (!sftp.downloadFile(remoteFilename, localFilename))
       {
@@ -208,8 +222,8 @@ namespace OpenMS
       dp->setProcessingActions(actions);
       dp->getSoftware().setName("PeakInvestigator");
       dp->setCompletionTime(DateTime::now());
-      dp->setMetaValue("paramter: veritomyx:server", server_);
-      dp->setMetaValue("paramter: veritomyx:username", username_);
+      dp->setMetaValue("parameter: veritomyx:server", server_);
+      dp->setMetaValue("parameter: veritomyx:username", username_);
       dp->setMetaValue("parameter: veritomyx:account", account_number_);
       dp->setMetaValue("veritomyx:job", job_);
 
@@ -257,36 +271,25 @@ namespace OpenMS
   {
     LOG_DEBUG << "Requsting credentials for " + username_ + "..." << endl;
 
-    url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
+    PiVersionsAction action(username_.toQString(), password_.toQString());
+    QString params = action.buildQuery();
 
-    QString params = QString("Version=" + reqVeritomyxCLIVersion.toQString()); // online CLI version that matches this interface
-    params += "&User="	+ username_.toQString() +
-            "&Code="    + password_.toQString() +
-            "&Action="  + "PI_VERSIONS";// +
-    //        "&ID=" + account_number_.toQString();
-
-    QVariantMap jMap;
     bool ok;
-    PostAndParse_(params, jMap, ok);
+    QString contents = Post_(params, ok);
+    action.processResponse(contents);
 
     if(ok) {
-        CurrentVersion_ = jMap["Current"].toString();
-        CurrentVersion_ = jMap["LastUsed"].toString();
-        // int verCount = jMap["Count"].toString().toInt();
-        PI_versions_.clear();
-        foreach(QVariant pi, jMap["PI_Versions"].toList()) {
-            PI_versions_ << pi.toString();
-        }
+        CurrentVersion_ = action.getCurrentVersion();
+        LastUsedVersion_ = action.getLastUsedVersion();
+        PI_versions_ = action.getVersions();
         PIVersion_ = (LastUsedVersion_.isEmpty() ? CurrentVersion_ : LastUsedVersion_);
     }
     return ok;
   }
 
-    bool PeakInvestigator::initializeJob_()
+ bool PeakInvestigator::initializeJob_()
   {
     LOG_DEBUG << "Requsting credentials for " + username_ + "..." << endl;
-
-    url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
 
     int minMass = INT_MAX,
          maxMass = 0;
@@ -305,119 +308,39 @@ namespace OpenMS
     min_mass_ = qMax(minMass, min_mass_);
     max_mass_ = qMin(maxMass, max_mass_);
 
-#ifdef WITH_GUI
-// Ask the user for a min and max value
-    QDialog massDlg;
-    massDlg.setWindowTitle("Peak Investigator Job");
-    QVBoxLayout *mainLayout = new QVBoxLayout(&massDlg);
-    QFrame *formFrame = new QFrame(&massDlg);
-    QFormLayout *form = new QFormLayout(formFrame);
-    QLabel *maxLabel = new QLabel("Maximum Mass:", &massDlg);
-    QLabel *minLabel = new QLabel("Minimum Mass:",& massDlg);
-    QLineEdit *maxEdit = new QLineEdit(QString::number(maxMass), &massDlg);
-    QLineEdit *minEdit = new QLineEdit(QStrng::number(minMass), &massDlg);
-    form->addRow(maxLabel, maxEdit);
-    form->addRow(minLabel, minEdit);
-    mainLayout->addWidget(formFrame);
-    QFrame *btnFrame = new QFrame(&massDlg);
-    QPushButton *okBtn = new QPushButton("Accept", &massDlg);
-    QObject::connect(okBtn, SIGNAL(clicked()), &massDlg, SIGNAL(accept()));
-    QPushButton *rejectBtn = new QPushButton("Reject", &massDlg);
-    QObject::connect(rejectBtn, SIGNAL(clicked()), &massDlg, SIGNAL(reject()));
-    QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
-    buttonLayout->addWidget(okBtn);
-    buttonLayout->addWidget(rejectBtn);
-    mainLayout->addWidget(btnFrame);
-    if(massDlg.exec() == QDialog::Accepted) {
-        uint xmass = maxEdit->text().toUInt();
-        if(xmass > maxMass) {
-            LOG_ERROR << "The Maximum Mass must be less than " <<  maxMass;
-            return false;
-        } else {
-            maxMass = xmass;
-        }
-        xmass = minEdit->text().toUInt();
-        if(xmass > maxMass) {
-            LOG_ERROR << "The Minimum Mass must be less than the Maximum Mass";
-            return false;
-        } else {
-            minMass = xmass;
-        }
-    } else {
-        return false;
-    }
-#endif
-
     // Ensure the selected PIVersion_ is available
     if(!PI_versions_.contains(PIVersion_)) {
         LOG_ERROR << "There was an error with the seleted version: " << PIVersion_.constData() << endl;
         return false;
     }
 
-    QString params = QString("Version=" + reqVeritomyxCLIVersion.toQString()); // online CLI version that matches this interface
-    params += "&User="	+ username_.toQString() +
-            "&Code="    + password_.toQString() +
-            "&Action="  + "INIT" +
-            "&ID=" + account_number_.toQString() +
-            "&PI_Version=" + PIVersion_ +
-            "&ScanCount=" + QString::number(experiment_.size()) +
-            "&MaxPoints=" + QString::number(pointsCount) +
-            "&MinMass=" + QString::number(minMass) +
-            "&MaxMass=" + QString::number(maxMass);
-//		",\"CalibrationCount\": " + calibrationCount + "\"" +
+    InitAction action(username_.toQString(), password_.toQString(),
+               account_number_, PIVersion_,
+               (int)experiment_.size(), pointsCount, minMass, maxMass);
+    // TODO:  Add calibrationCount to the InitAction
 
-    QVariantMap jMap;
     bool ok;
-    PostAndParse_(params, jMap, ok);
+    QString contents = Post_(action.buildQuery(), ok);
+    action.processResponse(contents);
 
     if(ok) {
-        job_ = jMap["Job"].toString();
-        funds_ = jMap["Funds"].toString();
-
-#ifdef WITH_GUI
-        PIVersion_ = (LastUsedVersion.isEmtpy() ? CurrentVersion : LastUsedVersion);
-        RTOs_.clear();
-        foreach(QVariant rto, jMap["RTOs"].toList()) {
-            RTOs_ << rto.toMap();
-        }
-        RTO_ = RTOs_[0]["RTO"].toString() ;
-
-        // Ask the user what RTO and Version they want to use.
-
-        // First build the string list for the RTOs.
-        QStringList l;
-        foreach(QVariantMap i, RTOs_) {
-            l << i["RTO"].toString() + ", Estimated Cost: " + i["EstCost"].toString();
-        }
-
-        PIVersion_ = QInputDialog::getItem(NULL, "Peak Investigator", "Please select which version you wish to use.", PI_versions_);
-
-        QString ret = QInputDialog::getItem(NULL, "Peak Investigator", "Please select which RTO you wish to use.\nYou have available funds of " + funds_, l);
-        RTO_ = ret.split(",")[0];
-
-#else
-        RTO_ = experiment_.getMetaValue("veritomyx:RTO").toQString();
-        PIVersion_ = experiment_.getMetaValue("veritomyx:PIVersion").toQString();
-#endif
+        job_ = action.getJob();
+        funds_ = action.getFunds();
+        projectId_ = action.getProjectId();
+        estimatedCosts_ = action.getEstimatedCosts();
     }
     return ok;
   }
 
   bool PeakInvestigator::submitJob_()
   {
-    url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
-    QString params = QString("Version=") + reqVeritomyxCLIVersion.toQString(); // online CLI version that matches this interface
-    params += "&User="	+ username_.toQString() +
-            "&Code="    + password_.toQString() +
-            "&Action="  + "RUN" +
-            "&Job" + job_ +
-            "&RTO=" + RTO_ +
-            "&InputFile=" + sftp_file_;
-    // "&CalibrationFile=" + calib_file_;
+    RunAction action(username_.toQString(), password_.toQString(),
+                job_, RTO_, sftp_file_);
+    // TODO:  CalibrationFile should be added calib_file_;
 
-    QVariantMap jMap;
     bool ok;
-    QString contents = PostAndParse_(params, jMap, ok);
+    QString contents = Post_(action.buildQuery(), ok);
+    action.processResponse(contents);
     cout << contents.toAscii().constData() << endl;
     return ok;
 
@@ -436,34 +359,41 @@ namespace OpenMS
       return retval;
     }
 
-    url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
-    QString params = QString("Version=") + reqVeritomyxCLIVersion.toQString(); // online CLI version that matches this interface
-    params += "&User="	+ username_.toQString() +
-              "&Code="    + password_.toQString() +
-              "&Action="  + "STATUS" +
-              "&Job" + job_ ;
+    StatusAction action(username_.toQString(), password_.toQString(),
+                        job_);
 
-    QVariantMap jMap;
     bool ok;
-    PostAndParse_(params, jMap, ok);
+    QString contents = Post_(action.buildQuery(), ok);
+    action.processResponse(contents);
 
     if(ok) {
-        if(jMap["Status"] == "Running")
+        switch(action.getStatus())
         {
-            LOG_INFO << job_.toAscii().constData() << " is still running.\n";
-            date_updated_ = jMap["Datetime"].toDate();
+        case StatusAction::Preparing :
+            LOG_INFO << job_.toAscii().constData() << " is still preparing.\n";
+            date_updated_ = action.getDate();
             retval = false;
-        }
-        else if (jMap["Status"] == "Done")
-        {
+            break;
+        case StatusAction::Running :
+            LOG_INFO << job_.toAscii().constData() << " is still runing.\n";
+            date_updated_ = action.getDate();
+            retval = false;
+            break;
+        case StatusAction::Deleted :
+            LOG_INFO << job_.toAscii().constData() << " was deleted.\n";
+            date_updated_ = action.getDate();
+            retval = false;
+            break;
+        case StatusAction::Done :
             LOG_INFO << job_.toAscii().constData() << " has finished.\n";
-            results_file_ = jMap["ResultsFile"].toString();
-            log_file_ = jMap["JobLogFile"].toString();
-            actual_cost_ = jMap["ActualCost"].toString();
-            date_updated_ = jMap["Datetime"].toDate();
+            results_file_ = action.getResultsFilename();
+            log_file_ = action.getLogFilename();
+            actual_cost_ = action.getActualCost();
+            date_updated_ = action.getDate();
+          // TODO  action.getNumberOfInputScans();
+          // TODO  action.getNumberOfCompleteScans();
             retval = true;
         }
-
         return retval;
     } else {
         return false;
@@ -472,17 +402,13 @@ namespace OpenMS
 
   bool PeakInvestigator::removeJob_()
   {
-    url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
-    QString params = QString("Version=") + reqVeritomyxCLIVersion.toQString(); // online CLI version that matches this interface
-    params += "&User="	+ username_.toQString() +
-              "&Code="    + password_.toQString() +
-              "&Action="  + "DELETE" +
-              "&Job" + job_ ;
 
-    QVariantMap jMap;
+    DeleteAction action(username_.toQString(), password_.toQString(),
+                        job_);
+
     bool ok;
-    QString contents = PostAndParse_(params, jMap, ok);
-
+    QString contents = Post_(action.buildQuery(), ok);
+    action.processResponse(contents);
     LOG_INFO << contents.toAscii().constData() << endl;
     return ok;
 
@@ -490,23 +416,19 @@ namespace OpenMS
 
   bool PeakInvestigator::getSFTPCredentials_()
   {
-      url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
-      QString params = QString("Version=") + reqVeritomyxCLIVersion.toQString(); // online CLI version that matches this interface
-      params += "&User="	+ username_.toQString() +
-                "&Code="    + password_.toQString() +
-                "&Action="  + "SFTP" +
-                "&ID" + account_number_.toQString() ;
+      SftpAction action(username_.toQString(), password_.toQString(),
+                        account_number_) ;
 
-      QVariantMap jMap;
       bool ok;
-      QString contents = PostAndParse_(params, jMap, ok);
+      QString contents = Post_(action.buildQuery(), ok);
+      action.processResponse(contents);
 
       if(ok) {
-          sftp_host_ = jMap["Host"].toString();
-          sftp_port_ = jMap["Port"].toString().toInt();
-          sftp_dir_  = jMap["Directory"].toString();
-          sftp_username_ = jMap["Login"].toString();
-          sftp_password_ = jMap["Password"].toString();
+          sftp_host_ = action.getHost();
+          sftp_port_ = action.getPort();
+          sftp_dir_  = action.getDirectory();
+          sftp_username_ = action.getSftpUsername();
+          sftp_password_ = action.getSftpPassword();
       }
       cout << contents.toAscii().constData() << endl;
 
@@ -515,45 +437,35 @@ namespace OpenMS
 
   PeakInvestigator::PIStatus PeakInvestigator::getPrepFileMessage_()
   {
-      url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
-      QString params = QString("Version=") + reqVeritomyxCLIVersion.toQString(); // online CLI version that matches this interface
-      params += "&User="	+ username_.toQString() +
-                "&Code="    + password_.toQString() +
-                "&Action="  + "PREP" +
-                "&ID" + account_number_.toQString() +
-                "&File" + sftp_file_;
+      PrepAction action(username_.toQString(), password_.toQString(),
+                        account_number_,
+                        sftp_file_);
 
-
-      QVariantMap jMap;
       bool ok;
-      QString contents = PostAndParse_(params, jMap, ok);
+      QString contents = Post_(action.buildQuery(), ok);
+      action.processResponse(contents);
 
       if(ok) {
-          QString status = jMap["Status"].toString();
-
-          if(status == "Ready")
+          switch(action.getStatus())
           {
+          case PrepAction::Ready :
               LOG_INFO << "Preparation of the job file completed, ";
-              prep_count_ = jMap["ScanCount"].toString().toInt();
+              prep_count_ = action.getScanCount();
               LOG_INFO << "found " << prep_count_ << "scans, and mass spectrometer type ";
               // TODO check ScanCount vs count saved, report error if not equal.
-              prep_ms_type_ = jMap["MSType"].toString();
+              prep_ms_type_ = action.getMStype();
               LOG_INFO <<  prep_ms_type_.toAscii().constData() << endl;
-          }
-          else if(status == "Analyzing")
-          {
-              QString s = jMap["ScanCount"].toString().left(s.indexOf("%")-1);
-              prep_percent_complete_ = s.toDouble();
+              cout << contents.toAscii().constData() << endl;
+              return PREP_READY;
+          case PrepAction::Analyzing :
+              prep_percent_complete_ = action.getPercentComplete().left(action.getPercentComplete().indexOf("%")-1).toDouble();
               LOG_INFO << "Preparation of the job file is still analyzing" << endl;
               return PREP_ANALYZING;
-          }
-          else
-          {
+          case PrepAction::Error :
+          default:
               LOG_INFO << "Preparation of the job file returned an error occurred" << endl;
               return PREP_ERROR;
           }
-          cout << contents.toAscii().constData() << endl;
-          return PREP_READY;
       } else {
           cout << contents.toAscii().constData() << endl;
           return PREP_ERROR;
@@ -568,15 +480,18 @@ namespace OpenMS
     account_number_ = param_.getValue("account");
     min_mass_ = param_.getValue("MinMass");
     max_mass_ = param_.getValue("MaxMass");
+    RTO_ = param_.getValue("RTO").toQString();
     PIVersion_ = param_.getValue("PIVersion").toQString();
   }
 
-  QString PeakInvestigator::PostAndParse_(QString params, QVariantMap &jMap, bool &success)
+  QString PeakInvestigator::Post_(QString params, bool &success)
   {
       if(params.isEmpty()) {
           success = false;
           return "";
       }
+
+      url_.setUrl("https://" + server_.toQString() + VI_API_SUFFIX);
 
       QNetworkRequest request(url_);
       request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
@@ -600,34 +515,98 @@ namespace OpenMS
       QString contents(reply_->readAll());
 
       reply_->deleteLater();
-      if (contents.startsWith("<html><head>"))
-      {
-          LOG_ERROR << "There is a problem with the specified server address." << endl;
-          success = false;
-      }
-      else
-      {
 
-          QJson::Parser parser;
-          bool ok;
-
-          jMap.clear();
-          jMap = parser.parse(contents.toAscii(), &ok).toMap();
-          if(!ok)
-          {
-              LOG_ERROR << "Error parsing JSON return from PeakInvestigator occurred:" << contents.toAscii().constData() << endl;
-              success = false;
-          }
-          else if (jMap.contains("Error"))
-          {
-              LOG_ERROR << "Error occurred:" << jMap["Error"].toByteArray().constData() << endl;
-              success = false;
-          } else {
-              success = true;
-          }
-      }
       return contents;
   }
+
+#ifdef WITH_GUI
+  bool PeakInvestigator::getVersionDlg(void) {
+      // Ask the user for a Version of PI to use and the min and max mass values
+          QDialog verDlg;
+          verDlg.setWindowTitle("Peak Investigator");
+          QVBoxLayout *mainLayout = new QVBoxLayout(&verDlg);
+          QGroupBox *verGB = new QGroupBox("Versions",&verDlg);
+          QFormLayout *verForm = new QFormLayout(&verGB);
+          QLabel *verLabel = new QLabel("Version:", &verDlg);
+          QLineEdit *verSelect = new QCombobox(&verDlg);
+          verSelect->addItems(PI_versions_);
+          int ci = PI_verions_.indexOf(LastUsedVersion.isEmpty() ? CurrentVersion_ : LastUsedVersion);
+          verSelect->setCurrentIndex(ci);
+          verForm->addRow(verLabel, verEdit);
+          mainLayout->addWidget(verGB);
+          QGroupBox *massGB = new QGroupBox("Masses", &verDlg);
+          QFormLayout *form = new QFormLayout(massGB);
+          QLabel *maxLabel = new QLabel("Maximum Mass:", &verDlg);
+          QLabel *minLabel = new QLabel("Minimum Mass:",& verDlg);
+          QLineEdit *maxEdit = new QLineEdit(QString::number(maxMass), &verDlg);
+          QLineEdit *minEdit = new QLineEdit(QStrng::number(minMass), &verDlg);
+          form->addRow(maxLabel, maxEdit);
+          form->addRow(minLabel, minEdit);
+          mainLayout->addWidget(massGB);
+          QFrame *btnFrame = new QFrame(&massDlg);
+          QPushButton *okBtn = new QPushButton("OK", &verDlg);
+          QObject::connect(okBtn, SIGNAL(clicked()), &verDlg, SIGNAL(accept()));
+          QPushButton *rejectBtn = new QPushButton("Cancel", &verDlg);
+          QObject::connect(rejectBtn, SIGNAL(clicked()), &verDlg, SIGNAL(reject()));
+          QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
+          buttonLayout->addWidget(okBtn);
+          buttonLayout->addWidget(rejectBtn);
+          mainLayout->addWidget(btnFrame);
+          if(verDlg.exec() == QDialog::Accepted) {
+              uint xmass = maxEdit->text().toUInt();
+              if(xmass > maxMass) {
+                  LOG_ERROR << "The Maximum Mass must be less than " <<  maxMass;
+                  return false;
+              } else {
+                  maxMass = xmass;
+              }
+              xmass = minEdit->text().toUInt();
+              if(xmass > maxMass) {
+                  LOG_ERROR << "The Minimum Mass must be less than the Maximum Mass";
+                  return false;
+              } else {
+                  minMass = xmass;
+              }
+          } else {
+              return false;
+          }
+
+  }
+
+  bool PeakInvestigator::getRTODlg(void) {
+
+      // Ask the user for a RTO to use
+          QDialog rtoDlg;
+          rtoDlg.setWindowTitle("Peak Investigator " + PIVersion_);
+          QVBoxLayout *mainLayout = new QVBoxLayout(&rtoDlg);
+          QGroupBox *losGB = new QGroupBox("Level of Service",&rtoDlg);
+          QGridLayout *losForm = new QGridLayout(&verGB);
+          QLabel *rtoLabel = new QLabel("Response Time Objective (<xx hrs):", &rtoDlg);
+          losForm->addItem(rtoLabel);
+          mainLayout->addWidget(verGB);
+          QGroupBox *fundsGB = new QGroupBox("Customer Account", &rtoDlg);
+          QFormLayout *form = new QFormLayout(fundsGB);
+          QLabel *fundsLabel = new QLabel("Available Balance:", &rtoDlg);
+          QLabel *fundsValue = new QLable(funds_, &rtoDlg);
+          form->addRow(fundsLabel, fundsValue);
+          mainLayout->addWidget(fundsGB);
+          QFrame *btnFrame = new QFrame(&massDlg);
+          QPushButton *moreBtn = new QPushButton("Price Quote Details...", &rtoDlg);
+          QPushButton *okBtn = new QPushButton("Purchase", &rtoDlg);
+          QObject::connect(okBtn, SIGNAL(clicked()), &rtoDlg, SIGNAL(accept()));
+          QPushButton *rejectBtn = new QPushButton("Cancel", &rtoDlg);
+          QObject::connect(rejectBtn, SIGNAL(clicked()), &verDlg, SIGNAL(reject()));
+          QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
+          buttonLayout->addWidget(okBtn);
+          buttonLayout->addWidget(rejectBtn);
+          mainLayout->addWidget(btnFrame);
+          if(rtoDlg.exec() == QDialog::Accepted) {
+              return true;
+          } else {
+              return false;
+          }
+  }
+#endif
 
 }
 

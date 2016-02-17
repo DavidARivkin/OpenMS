@@ -45,7 +45,7 @@ class PEAKINVESTIGATORIMPL_DLLAPI PiVersionsAction : public BaseAction {
         static const QLatin1String action;
 
 public:
-    PiVersionsAction(QString user, QString code);
+    PiVersionsAction(QString user=QString(), QString code=QString());
 
     QString buildQuery();
 

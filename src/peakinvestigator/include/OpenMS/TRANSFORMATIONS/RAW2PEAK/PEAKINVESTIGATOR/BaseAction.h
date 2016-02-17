@@ -64,9 +64,9 @@ public:
 
     virtual ~BaseAction() {;}
 
-    virtual QString buildQuery();
+    virtual QString buildQuery() const;
 
-    void processResponse(QString response);
+    void processResponse(const QString response);
 
     bool isReady(QString action);
 
@@ -76,17 +76,17 @@ public:
 
     virtual int getErrorCode(void);
 
-    QString getStringAttribute(QString attribute);
+    QString getStringAttribute(QString attribute) const;
 
-    int getIntAttribute(QString attribute);
+    int getIntAttribute(QString attribute) const;
 
-    long getLongAttribute(QString attribute);
+    long getLongAttribute(QString attribute) const;
 
-    double getDoubleAttribute(QString attribute);
+    double getDoubleAttribute(QString attribute) const;
 
-    QDate getDateAttribute(QString attribute = "Datetime");
+    QDate getDateAttribute(QString attribute = "Datetime") const;
 
-    QStringList getStringArrayAttribute(QString attribute);
+    QStringList getStringArrayAttribute(QString attribute) const;
 
 };
 
