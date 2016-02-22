@@ -28,7 +28,7 @@
 // ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // --------------------------------------------------------------------------
-// $Maintainer:$
+// $Maintainer:  David Rivkin $
 // $Author: Adam Tenderholt $
 // --------------------------------------------------------------------------
 //
@@ -45,6 +45,11 @@
 #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/RunAction.h>
 #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/StatusAction.h>
 #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/DeleteAction.h>
+
+#ifdef WITH_GUI
+#include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/RtoDialog.h>
+#include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/VersionDialog.h>
+#endif
 
 #include <QtCore/QBuffer>
 #include <QtCore/QCoreApplication>
@@ -522,89 +527,39 @@ namespace OpenMS
 #ifdef WITH_GUI
   bool PeakInvestigator::getVersionDlg(void) {
       // Ask the user for a Version of PI to use and the min and max mass values
-          QDialog verDlg;
-          verDlg.setWindowTitle("Peak Investigator");
-          QVBoxLayout *mainLayout = new QVBoxLayout(&verDlg);
-          QGroupBox *verGB = new QGroupBox("Versions",&verDlg);
-          QFormLayout *verForm = new QFormLayout(&verGB);
-          QLabel *verLabel = new QLabel("Version:", &verDlg);
-          QLineEdit *verSelect = new QCombobox(&verDlg);
-          verSelect->addItems(PI_versions_);
-          int ci = PI_verions_.indexOf(LastUsedVersion.isEmpty() ? CurrentVersion_ : LastUsedVersion);
-          verSelect->setCurrentIndex(ci);
-          verForm->addRow(verLabel, verEdit);
-          mainLayout->addWidget(verGB);
-          QGroupBox *massGB = new QGroupBox("Masses", &verDlg);
-          QFormLayout *form = new QFormLayout(massGB);
-          QLabel *maxLabel = new QLabel("Maximum Mass:", &verDlg);
-          QLabel *minLabel = new QLabel("Minimum Mass:",& verDlg);
-          QLineEdit *maxEdit = new QLineEdit(QString::number(maxMass), &verDlg);
-          QLineEdit *minEdit = new QLineEdit(QStrng::number(minMass), &verDlg);
-          form->addRow(maxLabel, maxEdit);
-          form->addRow(minLabel, minEdit);
-          mainLayout->addWidget(massGB);
-          QFrame *btnFrame = new QFrame(&massDlg);
-          QPushButton *okBtn = new QPushButton("OK", &verDlg);
-          QObject::connect(okBtn, SIGNAL(clicked()), &verDlg, SIGNAL(accept()));
-          QPushButton *rejectBtn = new QPushButton("Cancel", &verDlg);
-          QObject::connect(rejectBtn, SIGNAL(clicked()), &verDlg, SIGNAL(reject()));
-          QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
-          buttonLayout->addWidget(okBtn);
-          buttonLayout->addWidget(rejectBtn);
-          mainLayout->addWidget(btnFrame);
-          if(verDlg.exec() == QDialog::Accepted) {
-              uint xmass = maxEdit->text().toUInt();
-              if(xmass > maxMass) {
-                  LOG_ERROR << "The Maximum Mass must be less than " <<  maxMass;
-                  return false;
-              } else {
-                  maxMass = xmass;
-              }
-              xmass = minEdit->text().toUInt();
-              if(xmass > maxMass) {
-                  LOG_ERROR << "The Minimum Mass must be less than the Maximum Mass";
-                  return false;
-              } else {
-                  minMass = xmass;
-              }
-          } else {
+      VersionDialog verDlg("Peak Investigator", PI_versions_, LastUsedVersion_, CurrentVersion_, min_mass_, max_mass_);
+      if(verDlg.exec() == QDialog::Accepted) {
+          PIVersion_ = verDlg.version();
+          int xmass = verDlg.maxMass();
+          if(xmass > max_mass_) {
+              LOG_ERROR << "The Maximum Mass must be less than " <<  max_mass_;
               return false;
+          } else {
+              max_mass_ = xmass;
           }
-
+          xmass = verDlg.minMass();
+          if(xmass > max_mass_) {
+              LOG_ERROR << "The Minimum Mass must be less than the Maximum Mass";
+              return false;
+          } else {
+              min_mass_ = xmass;
+          }
+          return true;
+      } else {
+          return false;
+      }
   }
 
   bool PeakInvestigator::getRTODlg(void) {
 
       // Ask the user for a RTO to use
-          QDialog rtoDlg;
-          rtoDlg.setWindowTitle("Peak Investigator " + PIVersion_);
-          QVBoxLayout *mainLayout = new QVBoxLayout(&rtoDlg);
-          QGroupBox *losGB = new QGroupBox("Level of Service",&rtoDlg);
-          QGridLayout *losForm = new QGridLayout(&verGB);
-          QLabel *rtoLabel = new QLabel("Response Time Objective (<xx hrs):", &rtoDlg);
-          losForm->addItem(rtoLabel);
-          mainLayout->addWidget(verGB);
-          QGroupBox *fundsGB = new QGroupBox("Customer Account", &rtoDlg);
-          QFormLayout *form = new QFormLayout(fundsGB);
-          QLabel *fundsLabel = new QLabel("Available Balance:", &rtoDlg);
-          QLabel *fundsValue = new QLable(funds_, &rtoDlg);
-          form->addRow(fundsLabel, fundsValue);
-          mainLayout->addWidget(fundsGB);
-          QFrame *btnFrame = new QFrame(&massDlg);
-          QPushButton *moreBtn = new QPushButton("Price Quote Details...", &rtoDlg);
-          QPushButton *okBtn = new QPushButton("Purchase", &rtoDlg);
-          QObject::connect(okBtn, SIGNAL(clicked()), &rtoDlg, SIGNAL(accept()));
-          QPushButton *rejectBtn = new QPushButton("Cancel", &rtoDlg);
-          QObject::connect(rejectBtn, SIGNAL(clicked()), &verDlg, SIGNAL(reject()));
-          QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
-          buttonLayout->addWidget(okBtn);
-          buttonLayout->addWidget(rejectBtn);
-          mainLayout->addWidget(btnFrame);
-          if(rtoDlg.exec() == QDialog::Accepted) {
-              return true;
-          } else {
-              return false;
-          }
+      RtoDialog rtoDlg(" " + PIVersion_, funds_.toDouble(), estimatedCosts_);
+      if(rtoDlg.exec() == QDialog::Accepted) {
+          RTO_ = rtoDlg.getRto();
+          return true;
+      } else {
+          return false;
+      }
   }
 #endif
 

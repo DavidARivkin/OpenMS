@@ -33,62 +33,48 @@
 // --------------------------------------------------------------------------
 //
 
-#ifndef BASE_ACTION_H
-#define BASE_ACTION_H
+#ifndef RTODIALOG_H
+#define RTODIALOG_H
 
-#include "OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigatorImplConfig.h"
+#include <QDialog>
+#include <QFrame>
+#include <QVBoxLayout>
+#include <QGridLayout>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QComboBox>
+#include <QPushButton>
 
-#include <QDate>
-#include <QString>
-#include <QVariantMap>
-#include <QStringList>
-
-
-#define VERSION_OF_API "3.3"
-#define DATE_FORMAT "yyyy-MM-dd kk:mm:ss"
+#include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/InitAction.h>
 
 namespace OpenMS {
 
-class PEAKINVESTIGATORIMPL_DLLAPI BaseAction {
-private:
-
-    QString versionOfApi;
-    QString user;
-    QString code;
-
-protected:
-    QVariantMap responseObject;
+class RtoDialog : public QDialog {
 
 public:
-    BaseAction(QString user, QString code);
+    RtoDialog(QString title, double funds, QMap<QString, ResponseTimeCosts>  estCosts, QWidget * parent = 0, Qt::WindowFlags f = 0);
+    QString getRto(void) { return rtoCombo->currentText(); }
 
-    virtual ~BaseAction() {;}
+public slots:
+    void moreInfo(void);
 
-    virtual QString buildQuery() const;
-
-    void processResponse(const QString response);
-
-    bool isReady(QString action);
-
-    bool hasError(void);
-
-    virtual QString getErrorMessage(void);
-
-    virtual int getErrorCode(void);
-
-    QString getStringAttribute(QString attribute) const;
-
-    int getIntAttribute(QString attribute) const;
-
-    long getLongAttribute(QString attribute) const;
-
-    double getDoubleAttribute(QString attribute) const;
-
-    QDate getDateAttribute(QString attribute = "Datetime") const;
-
-    QStringList getStringArrayAttribute(QString attribute) const;
+protected:
+    QVBoxLayout *mainLayout;
+    QGroupBox *losGB;
+    QGridLayout *losForm;
+    QGroupBox *fundsGB;
+    QFormLayout *form;
+    QFrame *rtoFrame;
+    QFormLayout *rtoForm;
+    QComboBox *rtoCombo;
+    QFrame *btnFrame;
+    QPushButton *moreBtn;
+    QPushButton *okBtn;
+    QPushButton *rejectBtn;
+    QHBoxLayout *buttonLayout;
 
 };
 
 }
-#endif
+
+#endif // RTODIALOG_H

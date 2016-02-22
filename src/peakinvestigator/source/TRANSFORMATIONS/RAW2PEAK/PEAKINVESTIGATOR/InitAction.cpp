@@ -36,7 +36,7 @@
 #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/InitAction.h>
 
 #include <QStringBuilder>
-#include <QMap>
+#include <QMultiMap>
 #include <QVariant>
 
 #include <stdexcept>
@@ -100,14 +100,18 @@ QMap<QString, ResponseTimeCosts> InitAction::getEstimatedCosts() {
     preCheck();
 
     QMap<QString, ResponseTimeCosts> estimatedCosts;
-    QVariantMap Insts = responseObject.value("EstimatedCost").toMap();
-    foreach (QString stringInst, Insts.keys()) {
+    QVariantList Insts = responseObject.value("EstimatedCost").toList();
+    foreach (QVariant Inst, Insts) {
         ResponseTimeCosts costs;
-        QVariantMap RTOs = Insts.value(stringInst).toMap();
-        foreach (QString stringRTO, RTOs.keys()) {
-            costs.insert(stringRTO, RTOs.value(stringRTO).toDouble());
+        QVariantMap instDetails = Inst.toMap();
+        QString instName = instDetails.value("Instrument").toString();
+        QString stringRTO = instDetails.value("RTO").toString();
+        double dollars = instDetails.value("Cost").toDouble();
+        if(estimatedCosts.contains(instName)) {
+            costs = estimatedCosts.value(instName);
         }
-        estimatedCosts.insert(stringInst, costs);
+        costs.insert(stringRTO, dollars);
+        estimatedCosts.insert(instName, costs);
     }
 
     return estimatedCosts;

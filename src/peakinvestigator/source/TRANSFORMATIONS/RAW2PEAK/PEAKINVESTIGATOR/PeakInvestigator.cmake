@@ -59,10 +59,12 @@ set(sources_actions_list
   StatusAction.cpp
 )
 
-#set(sources_dlg_list
-#  PeakInvestigatorInitDialog.cpp
-#  MassRangeDialog.cpp
-#)
+if(WITH_GUI)
+set(sources_dlg_list
+  VersionDialog.cpp
+  RtoDialog.cpp
+)
+endif(WITH_GUI)
 
 if(${LIBSSH2_FOUND})
   list(APPEND sources_system_list
@@ -86,10 +88,10 @@ foreach(i ${sources_actions_list})
         list(APPEND sources_actions ${directory}/${i})
 endforeach(i)
 
-#set(peakinvestigator_dlg)
-#foreach(i ${sources_dlg_list})
-#        list(APPEND peakinvestigator_dlg ${dlg_directory}/${i})
-#endforeach(i)
+set(peakinvestigator_dlg)
+foreach(i ${sources_dlg_list})
+       list(APPEND peakinvestigator_dlg ${directory}/${i})
+endforeach(i)
 
 ### end add path
 
@@ -113,9 +115,9 @@ list(APPEND PeakInvestigatorFiles ${sources_format_internal})
 list(APPEND PeakInvestigatorFiles ${sources_system})
 list(APPEND PeakInvestigatorFiles ${sources_actions})
 
-#if(WITH_GUI)
-#list(APPEND PeakInvestigatorFiles ${peakinvestigator_dlg})
-#endif(WITH_GUI)
+if(WITH_GUI)
+list(APPEND PeakInvestigatorFiles ${peakinvestigator_dlg})
+endif(WITH_GUI)
 
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${peakinvestigator_source})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${mocced_sources})
@@ -123,9 +125,9 @@ source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT"
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\\INTERNAL" FILES ${sources_format_internal})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${sources_system})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${sources_actions})
-#if(WITH_GUI)
-#source_group("Source Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${peakinvestigator_dlg})
-#endif(WITH_GUI)
+if(WITH_GUI)
+source_group("Source Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${peakinvestigator_dlg})
+endif(WITH_GUI)
 
 ## add groups for headers
 set(header_format_list
@@ -146,12 +148,12 @@ set(header_actions_list
   StatusAction.h
 )
 
-#if(WITH_GUI)
-#set(header_dlg_list
-#  PeakInvestigatorInitDialog.h
-#  MassRangeDialog.h
-#)
-#endif(WITH_GUI)
+if(WITH_GUI)
+set(header_dlg_list
+  VersionDialog.h
+  RtoDialog.h
+)
+endif(WITH_GUI)
 
 if(${LIBSSH2_FOUND})
   list(APPEND header_system_list
@@ -175,12 +177,12 @@ foreach(i ${header_actions_list})
         list(APPEND header_actions ${header_directory}/${i})
 endforeach(i)
 
-#if(WITH_GUI)
-#set(header_dialog)
-#foreach(i ${header_dlg_list})
-#        list(APPEND header_dialog ${dlg_header_directory}/${i})
-#endforeach(i)
-#endif(WITHGUI)
+if(WITH_GUI)
+set(header_dialog)
+foreach(i ${header_dlg_list})
+        list(APPEND header_dialog ${header_directory}/${i})
+endforeach(i)
+endif(WITH_GUI)
 
 ### end add path
 
@@ -194,9 +196,9 @@ list(APPEND PeakInvestigatorFiles ${header_format_internal})
 list(APPEND PeakInvestigatorFiles ${header_system})
 list(APPEND PeakInvestigatorFiles ${header_actions})
 
-#if(WITH_GUI)
-#list(APPEND PeakInvestigatorFiles ${header_dialog})
-#endif(WITH_GUI)
+if(WITH_GUI)
+list(APPEND PeakInvestigatorFiles ${header_dialog})
+endif(WITH_GUI)
 
 # define list of headers related to peakinvestigator needed for
 # installation and export
@@ -207,6 +209,6 @@ source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT"
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\\INTERNAL" FILES ${header_format_internal})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${header_system})
 source_group("Header Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${header_actions})
-#if(WITH_GUI)
-#source_group("Header Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${header_dialog})
-#endif(WITH_GUI)
+if(WITH_GUI)
+source_group("Header Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${header_dialog})
+endif(WITH_GUI)

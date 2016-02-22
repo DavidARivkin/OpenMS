@@ -173,6 +173,14 @@ public:
     /// Function that should be called to exit the Qt event loop.
     void shutdown() { emit finishedRequest(); }
 
+    /** @brief Post the request using the <a href="https://secure.veritomyx.com/interface/API.php">
+     * PeakInvestigator API</a>.
+     *
+     * This Posts the API call from Veritomyx's servers as a POST command.
+     *  This method was made pubic for unit testing reasons.
+     * Returns the returned JSON string from the server
+     */
+    QString Post_(QString params, bool &ok);
 
 public slots:
     /// Main function that should be called once a Qt event loop has been created and is executing.
@@ -257,16 +265,6 @@ protected:
      */
     PIStatus getPrepFileMessage_();
 
-    /** @brief Post the request using the <a href="https://secure.veritomyx.com/interface/API.php">
-     * PeakInvestigator API</a>.
-     *
-     * This Posts the API call from Veritomyx's servers and waits for a Ready status.
-     * It assumes that the Veritomyx username, password, and account variables have been correctly
-     * specified with setParameters().
-     * Returns the status and a JMap of the JSON answer from the PeakInvestigator servers
-     */
-    QString Post_(QString params, bool &ok);
-
 #ifdef WITH_GUI
     /** @brief getVersionDlg to ask the user which API version they would like to use.
      *
@@ -294,7 +292,7 @@ protected:
     int account_number_; ///< @brief Veritomyx account number. Should be provided using the TOPP interface.
     QString job_; ///< @brief Job number obtained from public API during INIT request.
     long    projectId_;
-    QMap<QString, ResponseTimeCosts> estimatedCosts_;
+    QMultiMap<QString, ResponseTimeCosts> estimatedCosts_;
     QString funds_; ///< @brief Funds obtained from public API during INIT request.
     int min_mass_; ///< @brief Minimum mass to use.
     int max_mass_;  ///< @brief Maximum mass to use.

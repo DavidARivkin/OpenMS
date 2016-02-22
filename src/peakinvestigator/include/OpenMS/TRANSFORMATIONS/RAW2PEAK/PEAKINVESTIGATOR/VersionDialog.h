@@ -33,62 +33,49 @@
 // --------------------------------------------------------------------------
 //
 
-#ifndef BASE_ACTION_H
-#define BASE_ACTION_H
+#ifndef VERSIONDIALOG_H
+#define VERSIONDIALOG_H
 
-#include "OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigatorImplConfig.h"
-
-#include <QDate>
+#include <QDialog>
+#include <QVBoxLayout>
+#include <QFrame>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QPushButton>
 #include <QString>
-#include <QVariantMap>
 #include <QStringList>
-
-
-#define VERSION_OF_API "3.3"
-#define DATE_FORMAT "yyyy-MM-dd kk:mm:ss"
 
 namespace OpenMS {
 
-class PEAKINVESTIGATORIMPL_DLLAPI BaseAction {
-private:
-
-    QString versionOfApi;
-    QString user;
-    QString code;
-
-protected:
-    QVariantMap responseObject;
+class VersionDialog : public QDialog {
 
 public:
-    BaseAction(QString user, QString code);
+    VersionDialog(QString title, QStringList versions, QString lastUsedVersion, QString currentVersion, int minMass, int maxMass, QWidget * parent = 0, Qt::WindowFlags f = 0);
+    QString version(void) { return verSelect->currentText(); }
+    int minMass(void) { return minEdit->value(); }
+    int maxMass(void) { return maxEdit->value(); }
 
-    virtual ~BaseAction() {;}
+public slots:
+    void newMax(int value);
+    void newMin(int value);
 
-    virtual QString buildQuery() const;
-
-    void processResponse(const QString response);
-
-    bool isReady(QString action);
-
-    bool hasError(void);
-
-    virtual QString getErrorMessage(void);
-
-    virtual int getErrorCode(void);
-
-    QString getStringAttribute(QString attribute) const;
-
-    int getIntAttribute(QString attribute) const;
-
-    long getLongAttribute(QString attribute) const;
-
-    double getDoubleAttribute(QString attribute) const;
-
-    QDate getDateAttribute(QString attribute = "Datetime") const;
-
-    QStringList getStringArrayAttribute(QString attribute) const;
+protected:
+    QVBoxLayout *mainLayout;
+    QGroupBox *verGB;
+    QFormLayout *verForm;
+    QComboBox *verSelect;
+    QGroupBox *massGB;
+    QFormLayout *form;
+    QSpinBox *maxEdit;
+    QSpinBox *minEdit;
+    QFrame *btnFrame;
+    QPushButton *okBtn;
+    QPushButton *rejectBtn;
+    QHBoxLayout *buttonLayout;
 
 };
 
 }
-#endif
+#endif // VERSIONDIALOG_H

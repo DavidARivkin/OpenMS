@@ -33,62 +33,55 @@
 // --------------------------------------------------------------------------
 //
 
-#ifndef BASE_ACTION_H
-#define BASE_ACTION_H
+#include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/VersionDialog.h>
 
-#include "OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigatorImplConfig.h"
-
-#include <QDate>
-#include <QString>
-#include <QVariantMap>
-#include <QStringList>
-
-
-#define VERSION_OF_API "3.3"
-#define DATE_FORMAT "yyyy-MM-dd kk:mm:ss"
+#include <QLabel>
 
 namespace OpenMS {
-
-class PEAKINVESTIGATORIMPL_DLLAPI BaseAction {
-private:
-
-    QString versionOfApi;
-    QString user;
-    QString code;
-
-protected:
-    QVariantMap responseObject;
-
-public:
-    BaseAction(QString user, QString code);
-
-    virtual ~BaseAction() {;}
-
-    virtual QString buildQuery() const;
-
-    void processResponse(const QString response);
-
-    bool isReady(QString action);
-
-    bool hasError(void);
-
-    virtual QString getErrorMessage(void);
-
-    virtual int getErrorCode(void);
-
-    QString getStringAttribute(QString attribute) const;
-
-    int getIntAttribute(QString attribute) const;
-
-    long getLongAttribute(QString attribute) const;
-
-    double getDoubleAttribute(QString attribute) const;
-
-    QDate getDateAttribute(QString attribute = "Datetime") const;
-
-    QStringList getStringArrayAttribute(QString attribute) const;
-
-};
+VersionDialog::VersionDialog(QString title, QStringList versions, QString lastUsedVersion, QString currentVersion, int minMass, int maxMass, QWidget * parent, Qt::WindowFlags f) :
+    QDialog(parent, f)
+{
+    setWindowTitle(title);
+    mainLayout = new QVBoxLayout(this);
+    verGB = new QGroupBox("Versions",this);
+    verForm = new QFormLayout(this);
+    verSelect = new QComboBox(this);
+    verSelect->addItems(versions);
+    int ci = versions.indexOf(lastUsedVersion.isEmpty() ? currentVersion : lastUsedVersion);
+    verSelect->setCurrentIndex(ci);
+    verForm->addRow(new QLabel("Version:", this), verSelect);
+    mainLayout->addWidget(verGB);
+    QGroupBox *massGB = new QGroupBox("Masses", this);
+    QFormLayout *form = new QFormLayout(massGB);
+    maxEdit = new QSpinBox(this);
+    maxEdit->setRange(minMass+1, maxMass);
+    maxEdit->setValue(maxMass);
+    QObject::connect(maxEdit, SIGNAL(valueChanged(int value)), this, SIGNAL(newMax(value)));
+    minEdit = new QSpinBox(this);
+    minEdit->setRange(minMass, maxMass-1);
+    minEdit->setValue(minMass);
+    QObject::connect(minEdit, SIGNAL(valueChanged(int value)), this, SIGNAL(newMin(value)));
+    form->addRow(new QLabel("Maximum Mass:", this), maxEdit);
+    form->addRow(new QLabel("Minimum Mass:", this), minEdit);
+    mainLayout->addWidget(massGB);
+    QFrame *btnFrame = new QFrame(this);
+    QPushButton *okBtn = new QPushButton("OK", this);
+    QObject::connect(okBtn, SIGNAL(clicked()), this, SIGNAL(accept()));
+    QPushButton *rejectBtn = new QPushButton("Cancel", this);
+    QObject::connect(rejectBtn, SIGNAL(clicked()), this, SIGNAL(reject()));
+    QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
+    buttonLayout->addWidget(okBtn);
+    buttonLayout->addWidget(rejectBtn);
+    mainLayout->addWidget(btnFrame);
 
 }
-#endif
+
+void VersionDialog::newMax(int value) {
+    minEdit->setMaximum(value-1);
+}
+
+void VersionDialog::newMin(int value) {
+    minEdit->setMinimum(value+1);
+}
+
+}
