@@ -45,6 +45,7 @@ include_directories(SYSTEM ${OpenMS_INCLUDE_DIRECTORIES} ../../../peakinvestigat
 set(PI_action_tests
   PeakInvestigator_Parsing_test
   PeakInvestigator_SaaS_test
+  PeakInvestigator_Dialogs_test
 )
 
 # --------------------------------------------------------------------------

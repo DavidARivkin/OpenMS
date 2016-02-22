@@ -44,7 +44,7 @@ VersionDialog::VersionDialog(QString title, QStringList versions, QString lastUs
     setWindowTitle(title);
     mainLayout = new QVBoxLayout(this);
     verGB = new QGroupBox("Versions",this);
-    verForm = new QFormLayout(this);
+    verForm = new QFormLayout(verGB);
     verSelect = new QComboBox(this);
     verSelect->addItems(versions);
     int ci = versions.indexOf(lastUsedVersion.isEmpty() ? currentVersion : lastUsedVersion);
@@ -56,19 +56,19 @@ VersionDialog::VersionDialog(QString title, QStringList versions, QString lastUs
     maxEdit = new QSpinBox(this);
     maxEdit->setRange(minMass+1, maxMass);
     maxEdit->setValue(maxMass);
-    QObject::connect(maxEdit, SIGNAL(valueChanged(int value)), this, SIGNAL(newMax(value)));
+    QObject::connect(maxEdit, SIGNAL(valueChanged(int)), this, SLOT(newMax(int)));
     minEdit = new QSpinBox(this);
     minEdit->setRange(minMass, maxMass-1);
     minEdit->setValue(minMass);
-    QObject::connect(minEdit, SIGNAL(valueChanged(int value)), this, SIGNAL(newMin(value)));
+    QObject::connect(minEdit, SIGNAL(valueChanged(int)), this, SLOT(newMin(int)));
     form->addRow(new QLabel("Maximum Mass:", this), maxEdit);
     form->addRow(new QLabel("Minimum Mass:", this), minEdit);
     mainLayout->addWidget(massGB);
     QFrame *btnFrame = new QFrame(this);
     QPushButton *okBtn = new QPushButton("OK", this);
-    QObject::connect(okBtn, SIGNAL(clicked()), this, SIGNAL(accept()));
+    QObject::connect(okBtn, SIGNAL(clicked()), this, SLOT(accept()));
     QPushButton *rejectBtn = new QPushButton("Cancel", this);
-    QObject::connect(rejectBtn, SIGNAL(clicked()), this, SIGNAL(reject()));
+    QObject::connect(rejectBtn, SIGNAL(clicked()), this, SLOT(reject()));
     QHBoxLayout *buttonLayout = new QHBoxLayout(btnFrame);
     buttonLayout->addWidget(okBtn);
     buttonLayout->addWidget(rejectBtn);
@@ -77,11 +77,15 @@ VersionDialog::VersionDialog(QString title, QStringList versions, QString lastUs
 }
 
 void VersionDialog::newMax(int value) {
+    if(minEdit->value() >= value)
+        minEdit->setValue(value-1);
     minEdit->setMaximum(value-1);
 }
 
 void VersionDialog::newMin(int value) {
-    minEdit->setMinimum(value+1);
+    if(maxEdit->value() <= value)
+        maxEdit->setValue(value+1);
+    maxEdit->setMinimum(value+1);
 }
 
 }

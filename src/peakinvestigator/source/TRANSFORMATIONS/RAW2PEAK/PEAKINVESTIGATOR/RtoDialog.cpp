@@ -57,11 +57,12 @@ RtoDialog::RtoDialog(QString title, double funds, QMap<QString, ResponseTimeCost
         foreach(QString rto, rtcs.getRTOs()) {
             if(row == 2) {
                 rtos << rto;
-                losForm->addWidget(new QLabel(rto), 0, col);
+                losForm->addWidget(new QLabel(rto), 1, col);
             }
-            losForm->addWidget(new QLabel(QString("$") + QString::number(rtcs.getCost(rto), 'g', 2)));
+            losForm->addWidget(new QLabel(QString("$") + QString::number(rtcs.getCost(rto), 'f', 2)), row, col);
             col++;
         }
+        col = 1;
         row++;
     }
     mainLayout->addWidget(losGB);
@@ -69,7 +70,7 @@ RtoDialog::RtoDialog(QString title, double funds, QMap<QString, ResponseTimeCost
     fundsGB = new QGroupBox("Customer Account", this);
     form = new QFormLayout(fundsGB);
     form->addRow(new QLabel("Available Balance:", this),
-                  new QLabel(QString("$") + QString::number(funds, 'g', 2), this));
+                  new QLabel(QString("$") + QString::number(funds, 'f', 2), this));
     mainLayout->addWidget(fundsGB);
 
     rtoFrame = new QFrame(this);
@@ -81,11 +82,11 @@ RtoDialog::RtoDialog(QString title, double funds, QMap<QString, ResponseTimeCost
 
     btnFrame = new QFrame(this);
     moreBtn = new QPushButton("Price Quote Details...", this);
-    QObject::connect(moreBtn, SIGNAL(clicked()), this, SIGNAL(moreInfo()));
+    QObject::connect(moreBtn, SIGNAL(clicked()), this, SLOT(moreInfo()));
     okBtn = new QPushButton("Purchase", this);
-    QObject::connect(okBtn, SIGNAL(clicked()), this, SIGNAL(accept()));
+    QObject::connect(okBtn, SIGNAL(clicked()), this, SLOT(accept()));
     rejectBtn = new QPushButton("Cancel", this);
-    QObject::connect(rejectBtn, SIGNAL(clicked()), this, SIGNAL(reject()));
+    QObject::connect(rejectBtn, SIGNAL(clicked()), this, SLOT(reject()));
     buttonLayout = new QHBoxLayout(btnFrame);
     buttonLayout->addWidget(moreBtn);
     buttonLayout->addWidget(okBtn);

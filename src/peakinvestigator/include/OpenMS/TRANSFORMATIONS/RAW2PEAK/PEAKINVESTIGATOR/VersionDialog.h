@@ -47,9 +47,13 @@
 #include <QString>
 #include <QStringList>
 
+#include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigatorImplConfig.h>
+
 namespace OpenMS {
 
-class VersionDialog : public QDialog {
+class PEAKINVESTIGATORIMPL_DLLAPI VersionDialog : public QDialog {
+
+    Q_OBJECT
 
 public:
     VersionDialog(QString title, QStringList versions, QString lastUsedVersion, QString currentVersion, int minMass, int maxMass, QWidget * parent = 0, Qt::WindowFlags f = 0);

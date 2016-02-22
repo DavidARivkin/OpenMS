@@ -78,7 +78,7 @@ START_TEST(Parsing, "$Id$")
 /////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(PiVersionsAction_build_query)
+BOOST_AUTO_TEST_CASE(PiVersionsAction_SaaS)
 {
 
     QString user(USERNAME),
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(PiVersionsAction_build_query)
 }
 END_SECTION
 
-BOOST_AUTO_TEST_CASE(InitAction_build_query)
+BOOST_AUTO_TEST_CASE(InitAction_SaaS)
 {
 
     QString user(USERNAME),
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(InitAction_build_query)
 }
 END_SECTION
 
-BOOST_AUTO_TEST_CASE(SftpAction_build_query)
+BOOST_AUTO_TEST_CASE(SftpAction_SaaS)
 {
 
     QString user(USERNAME),
@@ -161,7 +161,7 @@ BOOST_AUTO_TEST_CASE(SftpAction_build_query)
 }
 END_SECTION
 
-BOOST_AUTO_TEST_CASE(PrepAction_build_query)
+BOOST_AUTO_TEST_CASE(PrepAction_SaaS)
 {
 
     QString user(USERNAME),
@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE(PrepAction_build_query)
 }
 END_SECTION
 
-BOOST_AUTO_TEST_CASE(RunAction_build_query)
+BOOST_AUTO_TEST_CASE(RunAction_SaaS)
 {
 
     QString user(USERNAME),
@@ -219,7 +219,7 @@ BOOST_AUTO_TEST_CASE(RunAction_build_query)
 }
 END_SECTION
 
-BOOST_AUTO_TEST_CASE(StatusAction_build_query)
+BOOST_AUTO_TEST_CASE(StatusAction_SaaS)
 {
 
     QString user(USERNAME),
@@ -256,7 +256,7 @@ BOOST_AUTO_TEST_CASE(StatusAction_build_query)
 }
 END_SECTION
 
-BOOST_AUTO_TEST_CASE(DeleteAction_build_query)
+BOOST_AUTO_TEST_CASE(DeleteAction_SaaS)
 {
 
     QString user(USERNAME),

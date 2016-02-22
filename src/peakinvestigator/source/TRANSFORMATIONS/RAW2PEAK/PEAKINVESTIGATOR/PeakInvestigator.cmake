@@ -102,10 +102,7 @@ set(sources_format_internal ${directory}/FORMAT/INTERNAL/tarball.cpp)
 set(peakinvestigator_header ${header_directory}/PeakInvestigator.h)
 set(peakinvestigator_source ${directory}/PeakInvestigator.cpp)
 
-qt4_wrap_cpp(mocced_sources ${peakinvestigator_header} OPTIONS ${BOOST_MOC_ARGS})
-#if(WITH_GUI)
-#qt4_wrap_cpp(mocced_ui ${header_dialog} OPTIONS ${BOOST_MOC_ARGS})
-#endif(WITH_GUI)
+QT4_WRAP_CPP(mocced_sources ${peakinvestigator_header} OPTIONS ${BOOST_MOC_ARGS})
 
 set(PeakInvestigatorFiles)
 list(APPEND PeakInvestigatorFiles ${peakinvestigator_source})
@@ -126,7 +123,7 @@ source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\FORMAT\
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR\\SYSTEM" FILES ${sources_system})
 source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${sources_actions})
 if(WITH_GUI)
-source_group("Source Files\\VISUAL\\PEAKINVESTIGATOR" FILES ${peakinvestigator_dlg})
+source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${peakinvestigator_dlg})
 endif(WITH_GUI)
 
 ## add groups for headers
@@ -182,6 +179,11 @@ set(header_dialog)
 foreach(i ${header_dlg_list})
         list(APPEND header_dialog ${header_directory}/${i})
 endforeach(i)
+QT4_WRAP_CPP(mocced_sources_dlg ${header_dialog} OPTIONS ${BOOST_MOC_ARGS})
+# define source file dependency
+#set_source_files_properties(${header_dlg_list} PROPERTIES OBJECT_DEPENDS ${mocced_sources_dlg})
+list(APPEND PeakInvestigatorFiles ${mocced_sources_dlg})
+source_group("Source Files\\TRANSFORMATIONS\\RAW2PEAK\\PEAKINVESTIGATOR" FILES ${mocced_sources_dlg})
 endif(WITH_GUI)
 
 ### end add path

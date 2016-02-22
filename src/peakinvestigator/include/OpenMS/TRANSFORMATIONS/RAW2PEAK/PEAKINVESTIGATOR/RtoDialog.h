@@ -45,11 +45,15 @@
 #include <QComboBox>
 #include <QPushButton>
 
+#include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigatorImplConfig.h>
+
 #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/InitAction.h>
 
 namespace OpenMS {
 
-class RtoDialog : public QDialog {
+class PEAKINVESTIGATORIMPL_DLLAPI RtoDialog : public QDialog {
+
+    Q_OBJECT
 
 public:
     RtoDialog(QString title, double funds, QMap<QString, ResponseTimeCosts>  estCosts, QWidget * parent = 0, Qt::WindowFlags f = 0);

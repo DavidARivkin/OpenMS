@@ -553,7 +553,7 @@ namespace OpenMS
   bool PeakInvestigator::getRTODlg(void) {
 
       // Ask the user for a RTO to use
-      RtoDialog rtoDlg(" " + PIVersion_, funds_.toDouble(), estimatedCosts_);
+      RtoDialog rtoDlg("Peak Investigator " + PIVersion_, funds_.toDouble(), estimatedCosts_);
       if(rtoDlg.exec() == QDialog::Accepted) {
           RTO_ = rtoDlg.getRto();
           return true;
