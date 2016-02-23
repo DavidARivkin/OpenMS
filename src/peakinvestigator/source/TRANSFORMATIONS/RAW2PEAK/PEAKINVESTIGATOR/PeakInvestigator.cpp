@@ -68,22 +68,9 @@
 
 // JSON support
 #include <qjson/parser.h>
-#ifdef WITH_GUI
-#include <QtGui/QDialog>
-#include <QtGui/QInputDialog>
-#include <QtGui/QComboBox>
-#include <QtGui/QLineEdit>
-#include <QtGui/QLabel>
-#include <QtGui/QFormLayout>
-#include <QtGui/QVBoxLayout>
-#include <QtGui/QHBoxLayout>
-#include <QtGui/QPushButton>
-#include <QtGui/QFrame>
-#endif
 
 #define VI_API_SUFFIX "/api/"
 #define VI_SSH_HASH String("Hash seed!")
-#define reqVeritomyxCLIVersion String("3.0")
 #define minutesCheckPrep 2
 #define minutesTimeoutPrep 20
 

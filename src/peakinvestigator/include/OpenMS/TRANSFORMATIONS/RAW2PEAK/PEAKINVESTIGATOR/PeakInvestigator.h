@@ -291,13 +291,12 @@ protected:
     String password_; ///< @brief Veritomyx account password. Should be provided using the TOPP interface.
     int account_number_; ///< @brief Veritomyx account number. Should be provided using the TOPP interface.
     QString job_; ///< @brief Job number obtained from public API during INIT request.
-    long    projectId_;
-    QMultiMap<QString, ResponseTimeCosts> estimatedCosts_;
+    long    projectId_;  ///< @brief Project ID within the account.
+    QMap<QString, ResponseTimeCosts> estimatedCosts_;
     QString funds_; ///< @brief Funds obtained from public API during INIT request.
     int min_mass_; ///< @brief Minimum mass to use.
     int max_mass_;  ///< @brief Maximum mass to use.
     QStringList PI_versions_; ///< @brief List of PI versions available obtained from public API during INIT request.
-    QVector<QVariantMap> RTOs_; ///< @brief List of RTOs available obtained from public API during INIT request. (one must be selected)
     QString PIVersion_; ///< @brief PI version selected by the user.
     QString CurrentVersion_;///< @brief PI version that is the most current version available.
     QString LastUsedVersion_;///< @brief PI version last used in a job by the user.
@@ -309,8 +308,8 @@ protected:
     QString sftp_file_; /// < @brief Filename for Veritomyx SFTP server. Set from the job ID.
     QString sftp_dir_; ///< @brief host directory for Veritomyx SFTP server, obtained from public API.
     int     prep_count_;///< @brief Scans counted by PREPP on Veritomyx SFTP server, obtained from public API.
-    QString prep_ms_type_;
-    double  prep_percent_complete_;
+    QString prep_ms_type_;  ///< @brief The mass spectrometer type found by PREP action
+    double  prep_percent_complete_;  ///< @brief % Complete of the PREP analysis, returned by the public API during INIT request.
     QString results_file_; ///< @brief results filename from Veritomyx SFTP server, obtained from public API.
     QString log_file_; ///< @brief Log filename from Veritomyx SFTP server, obtained from public API.
     QString actual_cost_; ///< @brief Job run cost from Veritomyx SFTP server, obtained from public API.
