@@ -35,7 +35,11 @@
 #include <OpenMS/APPLICATIONS/TOPPBase.h>
 #include <OpenMS/TRANSFORMATIONS/RAW2PEAK/PEAKINVESTIGATOR/PeakInvestigator.h>
 
+#ifdef WITH_GUI
+#include <QApplication>
+#else
 #include <QtCore/QCoreApplication>
+#endif
 #include <QtCore/QTimer>
 
 using namespace OpenMS;
@@ -90,7 +94,7 @@ protected:
     registerStringOption_("mode", "<text>", "", "mode to run PeakInvestigator job");
     setValidStrings_("mode", ListUtils::create<String>("submit,check,fetch,delete"));
 
-    registerSubsection_("veritomyx", "Veritomyx account information");
+    registerSubsection_("peakinvestigator", "PeakInvestigator account information");
   }
 
   Param getSubsectionDefaults_(const String & /*section*/) const
@@ -122,7 +126,11 @@ protected:
     // Setup a QCoreApplication for handling network requests
     //-------------------------------------------------------------
     char **argv2 = const_cast<char**>(argv);
+#ifdef WITH_GUI
+    QApplication app(argc, argv2);
+#else
     QCoreApplication app(argc, argv2);
+#endif
 
     PeakInvestigator pp(&app);
     pp.setLogType(log_type_);

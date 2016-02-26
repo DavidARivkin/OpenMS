@@ -293,9 +293,10 @@ protected:
     QString job_; ///< @brief Job number obtained from public API during INIT request.
     long    projectId_;  ///< @brief Project ID within the account.
     QMap<QString, ResponseTimeCosts> estimatedCosts_;
-    QString funds_; ///< @brief Funds obtained from public API during INIT request.
+    double funds_; ///< @brief Funds obtained from public API during INIT request.
     int min_mass_; ///< @brief Minimum mass to use.
     int max_mass_;  ///< @brief Maximum mass to use.
+    int points_count_; ///< @brief Maximum number of datapoints in the file.
     QStringList PI_versions_; ///< @brief List of PI versions available obtained from public API during INIT request.
     QString PIVersion_; ///< @brief PI version selected by the user.
     QString CurrentVersion_;///< @brief PI version that is the most current version available.

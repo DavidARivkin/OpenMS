@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(PiVersionsAction_SaaS)
     QString user(USERNAME),
             code(PASSWORD);
 
-    QCoreApplication app(argc, argv);
+    QCoreApplication *app = new QCoreApplication(argc, argv);
 
     PiVersionsAction *action = new PiVersionsAction(user, code);
     PeakInvestigator pi;
@@ -101,6 +101,7 @@ BOOST_AUTO_TEST_CASE(PiVersionsAction_SaaS)
     }
     cout << endl;
     delete action;
+    delete app;
 }
 END_SECTION
 
@@ -111,6 +112,8 @@ BOOST_AUTO_TEST_CASE(InitAction_SaaS)
             code(PASSWORD),
             versionOfPi("1.2");
     int ID(1234), scanCount(100), maxPoints(1000), minMass(10), maxMass(750), calibrationCount(100);
+
+    QCoreApplication *app = new QCoreApplication(argc, argv);
 
     InitAction *action = new InitAction(user, code,
                                         ID, versionOfPi, scanCount,
@@ -123,7 +126,7 @@ BOOST_AUTO_TEST_CASE(InitAction_SaaS)
     TEST_EQUAL(action->hasError(), false)
     cout << "Job:  " << action->getJob().toUtf8().constData()
          << "Project ID:  " << QString::number(action->getProjectId()).toUtf8().constData();
-    QMultiMap<QString, ResponseTimeCosts> RTOMap = action->getEstimatedCosts();
+    QMap<QString, ResponseTimeCosts> RTOMap = action->getEstimatedCosts();
     foreach(QString inst, RTOMap.keys()) {
         cout << "Instrument:  " << inst.toUtf8().constData() << endl;
         ResponseTimeCosts costs = RTOMap.value(inst);
@@ -133,6 +136,7 @@ BOOST_AUTO_TEST_CASE(InitAction_SaaS)
         cout << endl;
     }
     delete action;
+    delete app;
 }
 END_SECTION
 
@@ -142,6 +146,8 @@ BOOST_AUTO_TEST_CASE(SftpAction_SaaS)
     QString user(USERNAME),
             code(PASSWORD);
     int projectID(1234);
+
+    QCoreApplication *app = new QCoreApplication(argc, argv);
 
     SftpAction *action = new SftpAction(user, code,
                                         projectID);
@@ -158,6 +164,7 @@ BOOST_AUTO_TEST_CASE(SftpAction_SaaS)
          << "Password:  " << action->getSftpPassword().toUtf8().constData();
 
     delete action;
+    delete app;
 }
 END_SECTION
 
@@ -168,6 +175,8 @@ BOOST_AUTO_TEST_CASE(PrepAction_SaaS)
             code(PASSWORD),
             filename("test.tar");
     int projectID(1234);
+
+    QCoreApplication *app = new QCoreApplication(argc, argv);
 
     PrepAction *action = new PrepAction(user, code,
                                         projectID, filename);
@@ -192,6 +201,7 @@ BOOST_AUTO_TEST_CASE(PrepAction_SaaS)
     }
 
     delete action;
+    delete app;
 }
 END_SECTION
 
@@ -205,6 +215,8 @@ BOOST_AUTO_TEST_CASE(RunAction_SaaS)
             inputFilename("P1234-1234.tar"),
             calibrationFilename("P1234-1234_calib.tar");
 
+    QCoreApplication *app = new QCoreApplication(argc, argv);
+
     RunAction *action = new RunAction(user, code,
                                       job, RTO, inputFilename, calibrationFilename);
     PeakInvestigator pi;
@@ -216,6 +228,7 @@ BOOST_AUTO_TEST_CASE(RunAction_SaaS)
     cout << "Job:  " << action->getJob().toUtf8().constData();
 
     delete action;
+    delete app;
 }
 END_SECTION
 
@@ -225,6 +238,8 @@ BOOST_AUTO_TEST_CASE(StatusAction_SaaS)
     QString user(USERNAME),
             code(PASSWORD),
             jobID("P1234-1234");
+
+    QCoreApplication *app = new QCoreApplication(argc, argv);
 
     StatusAction *action = new StatusAction(user, code,
                                             jobID);
@@ -253,6 +268,7 @@ BOOST_AUTO_TEST_CASE(StatusAction_SaaS)
              << "Results filename:  " << action->getResultsFilename().toUtf8().constData();
     }
     delete action;
+    delete app;
 }
 END_SECTION
 
@@ -262,6 +278,8 @@ BOOST_AUTO_TEST_CASE(DeleteAction_SaaS)
     QString user(USERNAME),
             code(PASSWORD),
             jobID("P1234-1234");
+
+    QCoreApplication *app = new QCoreApplication(argc, argv);
 
     DeleteAction *action = new DeleteAction(user, code,
                                             jobID);
@@ -275,6 +293,7 @@ BOOST_AUTO_TEST_CASE(DeleteAction_SaaS)
     cout << "Job:  " << action->getJob().toUtf8().constData()
          << "Date:  " << action->getDate().toString().toUtf8().constData();
     delete action;
+    delete app;
 }
 END_SECTION
 

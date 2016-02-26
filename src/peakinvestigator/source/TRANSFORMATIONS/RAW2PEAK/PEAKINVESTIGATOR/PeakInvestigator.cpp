@@ -81,16 +81,16 @@ namespace OpenMS
   PeakInvestigator::PeakInvestigator(QObject* parent) :
     QObject(parent),
     DefaultParamHandler("PeakInvestigator"),
-    ProgressLogger()
+    ProgressLogger(),
+    manager_(this)
   {
     // set default parameter values
     defaults_.setValue("server", "peakinvestigator.veritomyx.com", "Server address for PeakInvestigator (without https://)");
-    defaults_.setValue("username", "USERNAME", "Username for account registered with Veritomyx");
-    defaults_.setValue("password", "PASSWORD", "Password for account registered with Veritomyx");
-    defaults_.setValue("account", 0, "Account number");
+    defaults_.setValue("username", "david.rivkin@gcpintl.com", "Username for account registered with Veritomyx");
+    defaults_.setValue("password", "Rivkin.5320", "Password for account registered with Veritomyx");
+    defaults_.setValue("account", 1012, "Account number");
 
-    defaults_.setValue("MinMass", 0, "Minimum mass to use");
-    defaults_.setValue("MaxMass", INT_MAX, "Maximum mass to use");
+    defaults_.setValue("m/z", "[min]:[max]", "m/z range to extract (applies to ALL ms levels!");
 
     defaults_.setValue("RTO", "RTO-24", "Response Time Objective to use");
     defaults_.setValue("PIVersion", "1.2", "Version of Peak Investigator to use");
@@ -214,14 +214,14 @@ namespace OpenMS
       dp->setProcessingActions(actions);
       dp->getSoftware().setName("PeakInvestigator");
       dp->setCompletionTime(DateTime::now());
-      dp->setMetaValue("parameter: veritomyx:server", server_);
-      dp->setMetaValue("parameter: veritomyx:username", username_);
-      dp->setMetaValue("parameter: veritomyx:account", account_number_);
-      dp->setMetaValue("veritomyx:job", job_);
+      dp->setMetaValue("parameter: peakinvestigator:server", server_);
+      dp->setMetaValue("parameter: peakinvestigator:username", username_);
+      dp->setMetaValue("parameter: peakinvestigator:account", account_number_);
+      dp->setMetaValue("peakinvestigator:job", job_);
 
 #ifndef WITH_GUI
-      dp->setMetaValue("veritomyx:RTO", RTO_);
-      dp->setMetaValue("veritomyx:PIVersion", PIVersion_);
+      dp->setMetaValue("peakinvestigator:RTO", RTO_);
+      dp->setMetaValue("peakinvestigator:Version", PIVersion_);
 #endif
 
       // Now add meta data to the scans
@@ -266,26 +266,22 @@ namespace OpenMS
     PiVersionsAction action(username_.toQString(), password_.toQString());
     QString params = action.buildQuery();
 
-    bool ok;
+    bool ok, ret;
     QString contents = Post_(params, ok);
     action.processResponse(contents);
 
-    if(ok) {
+    ret = (ok && !action.hasError());
+    if(ret) {
         CurrentVersion_ = action.getCurrentVersion();
         LastUsedVersion_ = action.getLastUsedVersion();
         PI_versions_ = action.getVersions();
         PIVersion_ = (LastUsedVersion_.isEmpty() ? CurrentVersion_ : LastUsedVersion_);
     }
-    return ok;
-  }
-
- bool PeakInvestigator::initializeJob_()
-  {
-    LOG_DEBUG << "Requsting credentials for " + username_ + "..." << endl;
-
+    min_mass_ = 0;
+    max_mass_ = INT_MAX;
     int minMass = INT_MAX,
          maxMass = 0;
-    int pointsCount = 0;
+    points_count_ = 0;
     // Loop over the scans
     for(Size s = 0; s < experiment_.size(); s++) {
         // Loop over the datapoints
@@ -295,10 +291,17 @@ namespace OpenMS
         Size sEnd = experiment_[s].size()-1;
         maxMass = qMax(maxMass, (int)ceil(experiment_[s][sEnd].getPosition()[0]));
         // Get the number of datapoints in the scan
-        pointsCount = qMax(pointsCount, (int)sEnd);
+        points_count_ = qMax(points_count_, (int)sEnd);
     }
     min_mass_ = qMax(minMass, min_mass_);
     max_mass_ = qMin(maxMass, max_mass_);
+
+    return ret;
+  }
+
+ bool PeakInvestigator::initializeJob_()
+  {
+    LOG_DEBUG << "Requsting credentials for " + username_ + "..." << endl;
 
     // Ensure the selected PIVersion_ is available
     if(!PI_versions_.contains(PIVersion_)) {
@@ -308,20 +311,21 @@ namespace OpenMS
 
     InitAction action(username_.toQString(), password_.toQString(),
                account_number_, PIVersion_,
-               (int)experiment_.size(), pointsCount, minMass, maxMass);
+               (int)experiment_.size(), points_count_, min_mass_, max_mass_);
     // TODO:  Add calibrationCount to the InitAction
 
-    bool ok;
+    bool ok, ret;
     QString contents = Post_(action.buildQuery(), ok);
     action.processResponse(contents);
 
-    if(ok) {
+    ret = (ok && !action.hasError());
+    if(ret) {
         job_ = action.getJob();
         funds_ = action.getFunds();
         projectId_ = action.getProjectId();
         estimatedCosts_ = action.getEstimatedCosts();
     }
-    return ok;
+    return ret;
   }
 
   bool PeakInvestigator::submitJob_()
@@ -333,7 +337,7 @@ namespace OpenMS
     bool ok;
     QString contents = Post_(action.buildQuery(), ok);
     action.processResponse(contents);
-    cout << contents.toAscii().constData() << endl;
+    LOG_INFO << contents.toAscii().constData() << endl;
     return ok;
 
   }
@@ -342,8 +346,8 @@ namespace OpenMS
   {
     bool retval = false;
 
-    server_ = experiment_.getMetaValue("veritomyx:server");
-    job_ = experiment_.getMetaValue("veritomyx:job").toQString();
+    server_ = experiment_.getMetaValue("peakinvestigator:server");
+    job_ = experiment_.getMetaValue("peakinvestigator:job").toQString();
 
     if (job_.isEmpty())
     {
@@ -358,7 +362,7 @@ namespace OpenMS
     QString contents = Post_(action.buildQuery(), ok);
     action.processResponse(contents);
 
-    if(ok) {
+    if(ok && !action.hasError()) {
         switch(action.getStatus())
         {
         case StatusAction::Preparing :
@@ -382,9 +386,12 @@ namespace OpenMS
             log_file_ = action.getLogFilename();
             actual_cost_ = action.getActualCost();
             date_updated_ = action.getDate();
-          // TODO  action.getNumberOfInputScans();
-          // TODO  action.getNumberOfCompleteScans();
-            retval = true;
+            if( action.getNumberOfInputScans() != action.getNumberOfCompleteScans()) {
+                LOG_ERROR << "The number of input scans does not match the number of scans completed!";
+                retval = false;
+            } else {
+                retval = true;
+            }
         }
         return retval;
     } else {
@@ -401,7 +408,7 @@ namespace OpenMS
     bool ok;
     QString contents = Post_(action.buildQuery(), ok);
     action.processResponse(contents);
-    LOG_INFO << contents.toAscii().constData() << endl;
+//    LOG_INFO << contents.toAscii().constData() << endl;
     return ok;
 
   }
@@ -422,7 +429,7 @@ namespace OpenMS
           sftp_username_ = action.getSftpUsername();
           sftp_password_ = action.getSftpPassword();
       }
-      cout << contents.toAscii().constData() << endl;
+//      LOG_INFO << contents.toAscii().constData() << endl;
 
       return ok;
   }
@@ -437,7 +444,7 @@ namespace OpenMS
       QString contents = Post_(action.buildQuery(), ok);
       action.processResponse(contents);
 
-      if(ok) {
+      if(ok && !action.hasError()) {
           switch(action.getStatus())
           {
           case PrepAction::Ready :
@@ -459,7 +466,7 @@ namespace OpenMS
               return PREP_ERROR;
           }
       } else {
-          cout << contents.toAscii().constData() << endl;
+ //         LOG_INFO << contents.toAscii().constData() << endl;
           return PREP_ERROR;
       }
   }
@@ -470,8 +477,12 @@ namespace OpenMS
     username_ = param_.getValue("username");
     password_ = param_.getValue("password");
     account_number_ = param_.getValue("account");
-    min_mass_ = param_.getValue("MinMass");
-    max_mass_ = param_.getValue("MaxMass");
+    String  minMaxString = param_.getValue("m/z");
+    std::vector<String> minMaxSplit;
+    if((minMaxString != "[min]:[max]") && minMaxString.split(':', minMaxSplit)) {
+        min_mass_ = minMaxSplit[0].toInt();
+        max_mass_ = minMaxSplit[1].toInt();
+    }
     RTO_ = param_.getValue("RTO").toQString();
     PIVersion_ = param_.getValue("PIVersion").toQString();
   }
@@ -507,7 +518,7 @@ namespace OpenMS
       QString contents(reply_->readAll());
 
       reply_->deleteLater();
-
+      success = true;
       return contents;
   }
 
@@ -540,7 +551,7 @@ namespace OpenMS
   bool PeakInvestigator::getRTODlg(void) {
 
       // Ask the user for a RTO to use
-      RtoDialog rtoDlg("Peak Investigator " + PIVersion_, funds_.toDouble(), estimatedCosts_);
+      RtoDialog rtoDlg("Peak Investigator " + PIVersion_, funds_, estimatedCosts_);
       if(rtoDlg.exec() == QDialog::Accepted) {
           RTO_ = rtoDlg.getRto();
           return true;
