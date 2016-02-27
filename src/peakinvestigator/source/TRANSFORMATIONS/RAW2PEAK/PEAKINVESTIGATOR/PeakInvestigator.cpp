@@ -86,14 +86,14 @@ namespace OpenMS
   {
     // set default parameter values
     defaults_.setValue("server", "peakinvestigator.veritomyx.com", "Server address for PeakInvestigator (without https://)");
-    defaults_.setValue("username", "david.rivkin@gcpintl.com", "Username for account registered with Veritomyx");
-    defaults_.setValue("password", "Rivkin.5320", "Password for account registered with Veritomyx");
-    defaults_.setValue("account", 1012, "Account number");
+    defaults_.setValue("username", "USERNAME", "Username for account registered with Veritomyx");
+    defaults_.setValue("password", "PASSWORD", "Password for account registered with Veritomyx");
+    defaults_.setValue("account", 12345, "Account number");
 
     defaults_.setValue("m/z", "[min]:[max]", "m/z range to extract (applies to ALL ms levels!");
 
     defaults_.setValue("RTO", "RTO-24", "Response Time Objective to use");
-    defaults_.setValue("PIVersion", "1.2", "Version of Peak Investigator to use");
+    defaults_.setValue("Version", "1.2", "Version of Peak Investigator to use");
 
     // write defaults into Param object param_
     defaultsToParam_();
@@ -215,14 +215,7 @@ namespace OpenMS
       dp->getSoftware().setName("PeakInvestigator");
       dp->setCompletionTime(DateTime::now());
       dp->setMetaValue("parameter: peakinvestigator:server", server_);
-      dp->setMetaValue("parameter: peakinvestigator:username", username_);
-      dp->setMetaValue("parameter: peakinvestigator:account", account_number_);
       dp->setMetaValue("peakinvestigator:job", job_);
-
-#ifndef WITH_GUI
-      dp->setMetaValue("peakinvestigator:RTO", RTO_);
-      dp->setMetaValue("peakinvestigator:Version", PIVersion_);
-#endif
 
       // Now add meta data to the scans
       for (Size i = 0; i < experiment_.size(); i++)
@@ -337,7 +330,11 @@ namespace OpenMS
     bool ok;
     QString contents = Post_(action.buildQuery(), ok);
     action.processResponse(contents);
-    LOG_INFO << contents.toAscii().constData() << endl;
+    cout << endl << "Job " << action.getJob().constData() << " started." << endl;
+//    LOG_INFO << contents.toAscii().constData() << endl;
+
+    experiment_.setMetaValue("peakinvestigator:job", job_);
+//    experiment_.save();
     return ok;
 
   }
@@ -346,7 +343,6 @@ namespace OpenMS
   {
     bool retval = false;
 
-    server_ = experiment_.getMetaValue("peakinvestigator:server");
     job_ = experiment_.getMetaValue("peakinvestigator:job").toQString();
 
     if (job_.isEmpty())
@@ -484,7 +480,8 @@ namespace OpenMS
         max_mass_ = minMaxSplit[1].toInt();
     }
     RTO_ = param_.getValue("RTO").toQString();
-    PIVersion_ = param_.getValue("PIVersion").toQString();
+    PIVersion_ = param_.getValue("Version").toQString();
+    DefaultParamHandler::updateMembers_();
   }
 
   QString PeakInvestigator::Post_(QString params, bool &success)

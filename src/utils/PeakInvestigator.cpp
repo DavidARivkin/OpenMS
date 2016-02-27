@@ -112,8 +112,9 @@ protected:
     out = getStringOption_("out");
     mode = getStringOption_("mode");
 
-    Param pepi_param = getParam_().copy("veritomyx:", true);
+    Param pepi_param = getParam_().copy("peakinvestigator:", true);
     writeDebug_("Parameters passed to PeakInvestigator", pepi_param, 3);
+    pepi_param.parseCommandLine(argc, argv);
 
     //----------------------------------------------------------------
     // Open file
