@@ -70,7 +70,7 @@
 #include <qjson/parser.h>
 
 #define VI_API_SUFFIX "/api/"
-#define VI_SSH_HASH String("Hash seed!")
+#define VI_SSH_HASH String("D2:BE:B8:2E:3C:BE:84:E4:A3:0A:C8:42:5C:6B:39:4E")
 #define minutesCheckPrep 2
 #define minutesTimeoutPrep 20
 
@@ -138,22 +138,24 @@ namespace OpenMS
       }
 #endif
 
-      // Generate local and remote filenames of tar'd scans
-      zipfilename = job_ + ".scans.tar";
-      localFilename = QDir::tempPath() + "/" + zipfilename;
-      remoteFilename = sftp_dir_ + "/" + zipfilename;
-      tar.store(localFilename, experiment_);
-
-      // Remove data values from scans in exp now that they have been bundled
-      for (Size i = 0; i < experiment_.size(); i++)
-      {
-        experiment_[i].clear(false);
-      }
-
       if(getSFTPCredentials_()) {
 
-          // Set SFTP host paramters and upload file
+          // Generate local and remote filenames of tar'd scans
+          zipfilename = job_ + ".scans.tar";
+          localFilename = QDir::tempPath() + "/" + zipfilename;
+          remoteFilename = sftp_dir_ + "/" + zipfilename;
+          tar.store(localFilename, experiment_);
+
+          // Remove data values from scans in exp now that they have been bundled
+          for (Size i = 0; i < experiment_.size(); i++)
+          {
+              experiment_[i].clear(false);
+          }
+
+         // Set SFTP host paramters and upload file
           sftp.setHostname(server_);
+          String portnumber(sftp_port_);
+          sftp.setPortnumber(portnumber);
           sftp.setUsername(sftp_username_);
           sftp.setPassword(sftp_password_);
           sftp.setExpectedServerHash(VI_SSH_HASH);
@@ -162,13 +164,18 @@ namespace OpenMS
          {
              // Do PREP
             long timeWait = minutesTimeoutPrep;
-            while((getPrepFileMessage_() == PREP_ANALYZING) && timeWait > 0) {
-                LOG_INFO << "Waiting for PREP analysis to complete, " << localFilename << ", on SaaS server...Please be patient.";
-                QThread::currentThread()->wait(minutesCheckPrep * 60000);
+            PeakInvestigator::PIStatus prep_stat = getPrepFileMessage_(zipfilename);
+            while((prep_stat == PREP_ANALYZING) && timeWait > 0) {
+                LOG_INFO << "Waiting for PREP analysis to complete, " << zipfilename.constData() << ", on SaaS server...Please be patient.";
+                sleep(minutesCheckPrep * 60);
                 timeWait -= minutesCheckPrep;
             }
             // TODO:  If we timed out, report and error
-            submitJob_();
+            if(prep_stat == PREP_READY) {
+                submitJob_();
+            } else {
+                cout << endl << "Error trying to PREP the file on the Saas server!" << endl;
+            }
          }
       }
       break;
@@ -430,11 +437,11 @@ namespace OpenMS
       return ok;
   }
 
-  PeakInvestigator::PIStatus PeakInvestigator::getPrepFileMessage_()
+  PeakInvestigator::PIStatus PeakInvestigator::getPrepFileMessage_(QString filename)
   {
       PrepAction action(username_.toQString(), password_.toQString(),
                         account_number_,
-                        sftp_file_);
+                        filename);
 
       bool ok;
       QString contents = Post_(action.buildQuery(), ok);

@@ -263,7 +263,7 @@ protected:
      * It assumes that the Veritomyx username, password, and account variables have been correctly
      * specified with setParameters().
      */
-    PIStatus getPrepFileMessage_();
+    PIStatus getPrepFileMessage_(QString filename);
 
 #ifdef WITH_GUI
     /** @brief getVersionDlg to ask the user which API version they would like to use.
