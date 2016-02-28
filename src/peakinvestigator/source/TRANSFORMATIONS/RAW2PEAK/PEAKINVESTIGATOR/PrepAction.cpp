@@ -90,6 +90,11 @@ int PrepAction::getScanCount() {
     return (int) getLongAttribute("ScanCount");
 }
 
+int PrepAction::getMaxPoints() {
+    preCheck();
+    return (int) getLongAttribute("MaxPoints");
+}
+
 QString PrepAction::getPercentComplete() {
     preCheck();
     return getStringAttribute("PercentComplete");

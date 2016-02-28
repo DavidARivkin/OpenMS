@@ -64,6 +64,8 @@ public:
 
     int getScanCount();
 
+    int getMaxPoints();
+
     QString getPercentComplete();
 
     QString getMStype();

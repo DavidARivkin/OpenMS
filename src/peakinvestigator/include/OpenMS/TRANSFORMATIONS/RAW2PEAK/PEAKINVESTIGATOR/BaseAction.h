@@ -44,7 +44,7 @@
 #include <QStringList>
 
 
-#define VERSION_OF_API "3.3"
+#define VERSION_OF_API "3.4"
 #define DATE_FORMAT "yyyy-MM-dd kk:mm:ss"
 
 namespace OpenMS {
