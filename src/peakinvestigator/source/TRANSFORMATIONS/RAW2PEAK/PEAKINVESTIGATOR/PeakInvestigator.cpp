@@ -166,12 +166,14 @@ namespace OpenMS
             long timeWait = minutesTimeoutPrep;
             PeakInvestigator::PIStatus prep_stat = getPrepFileMessage_(zipfilename);
             while((prep_stat == PREP_ANALYZING) && timeWait > 0) {
-                LOG_INFO << "Waiting for PREP analysis to complete, " << zipfilename.constData() << ", on SaaS server...Please be patient.";
+                // LOG_INFO << "Waiting for PREP analysis to complete, " << zipfilename.toAscii().constData() << ", on SaaS server...Please be patient.";
                 sleep(minutesCheckPrep * 60);
                 timeWait -= minutesCheckPrep;
+                prep_stat = getPrepFileMessage_(zipfilename);
             }
             // TODO:  If we timed out, report and error
             if(prep_stat == PREP_READY) {
+                sftp_file_ = zipfilename;
                 submitJob_();
             } else {
                 cout << endl << "Error trying to PREP the file on the Saas server!" << endl;
@@ -311,7 +313,7 @@ namespace OpenMS
 
     InitAction action(username_.toQString(), password_.toQString(),
                account_number_, PIVersion_,
-               (int)experiment_.size(), points_count_, min_mass_, max_mass_);
+               (int)experiment_.size(), points_count_+1, min_mass_, max_mass_);
     // TODO:  Add calibrationCount to the InitAction
 
     bool ok, ret;
@@ -337,12 +339,18 @@ namespace OpenMS
     bool ok;
     QString contents = Post_(action.buildQuery(), ok);
     action.processResponse(contents);
-    cout << endl << "Job " << action.getJob().constData() << " started." << endl;
-//    LOG_INFO << contents.toAscii().constData() << endl;
 
-    experiment_.setMetaValue("peakinvestigator:job", job_);
-//    experiment_.save();
-    return ok;
+    if(ok && !action.hasError()) {
+
+        cout << endl << "Job " << action.getJob().toAscii().constData() << " started." << endl;
+    //    LOG_INFO << contents.toAscii().constData() << endl;
+
+        experiment_.setMetaValue("peakinvestigator:job", job_);
+        return ok;
+    } else {
+        cout << action.getErrorMessage().toAscii().constData() << endl;
+        return false;
+    }
 
   }
 
@@ -350,12 +358,14 @@ namespace OpenMS
   {
     bool retval = false;
 
-    job_ = experiment_.getMetaValue("peakinvestigator:job").toQString();
+    if(job_.isEmpty()) {
+        job_ = experiment_.getMetaValue("peakinvestigator:job").toQString();
 
-    if (job_.isEmpty())
-    {
-      LOG_WARN << "Problem getting job ID from meta data.\n";
-      return retval;
+        if (job_.isEmpty())
+        {
+          LOG_WARN << "Problem getting job ID from meta data.\n";
+          return retval;
+        }
     }
 
     StatusAction action(username_.toQString(), password_.toQString(),
@@ -398,6 +408,7 @@ namespace OpenMS
         }
         return retval;
     } else {
+        cout << action.getErrorMessage().toAscii().constData() << endl;
         return false;
     }
   }
@@ -453,15 +464,14 @@ namespace OpenMS
           case PrepAction::Ready :
               LOG_INFO << "Preparation of the job file completed, ";
               prep_count_ = action.getScanCount();
-              LOG_INFO << "found " << prep_count_ << "scans, and mass spectrometer type ";
-              // TODO check ScanCount vs count saved, report error if not equal.
+              LOG_INFO << "found " << prep_count_ << " scans, and mass spectrometer type ";
               prep_ms_type_ = action.getMStype();
               LOG_INFO <<  prep_ms_type_.toAscii().constData() << endl;
-              cout << contents.toAscii().constData() << endl;
+ //             cout << contents.toAscii().constData() << endl;
               return PREP_READY;
           case PrepAction::Analyzing :
-              prep_percent_complete_ = action.getPercentComplete().left(action.getPercentComplete().indexOf("%")-1).toDouble();
-              LOG_INFO << "Preparation of the job file is still analyzing" << endl;
+              prep_percent_complete_ = action.getPercentComplete().left(action.getPercentComplete().indexOf("%")).toDouble();
+              LOG_INFO << "Preparation of the job file is still analyzing.  % Complete: " << action.getPercentComplete().toAscii().constData() << endl;
               return PREP_ANALYZING;
           case PrepAction::Error :
           default:
@@ -469,7 +479,7 @@ namespace OpenMS
               return PREP_ERROR;
           }
       } else {
- //         LOG_INFO << contents.toAscii().constData() << endl;
+          cout << endl << action.getErrorMessage().toAscii().constData() << endl;
           return PREP_ERROR;
       }
   }

@@ -142,6 +142,26 @@ protected:
       return TOPPBase::INCOMPATIBLE_INPUT_DATA;
     }
 
+    //-----------------------------------------------------------------------------
+    // Set the filename with parsed JobID for later saving as needed
+    //-----------------------------------------------------------------------------
+    QString filename;
+    if (mode != "submit")
+    {
+        filename = in.toQString();
+        const QString jid("JobID_");
+        const QString mzml(".mzML");
+        if(!filename.contains(jid)) {
+            // The filename does not contain a JobID, error!
+            std::cout << std::endl << "Error!:  input filename does not contain a Job ID!" << std::endl;
+            return ILLEGAL_PARAMETERS;
+        } else {
+            int startIndex = filename.indexOf(jid, 1) + jid.count();
+            int endIndex = filename.indexOf(mzml, startIndex);
+            pp.setJobID(filename.mid(startIndex , endIndex - startIndex));
+        }
+    }
+
     if (mode == "submit")
     {
         pp.setMode(PeakInvestigator::SUBMIT);
@@ -165,16 +185,13 @@ protected:
     QTimer::singleShot(100, &pp, SLOT(run()));
     app.exec();
 
-    //-----------------------------------------------------------------------------
-    // Save experiment which contains either jobID or results (i.e. peaks)
-    // depending on mode
-    //-----------------------------------------------------------------------------
-    QString filename;
+
+    // Set the filename and save the data if appropriate
     if (out == String::EMPTY)
     {
       if (mode == "submit")
       {
-        filename = in.toQString().section(".", 0, -2) + "." + pp.getJobID() + ".mzML";
+        filename = in.toQString().section(".", 0, -2) + ".JobID_" + pp.getJobID() + ".mzML";
       }
       else if (mode == "fetch")
       {
@@ -185,10 +202,10 @@ protected:
     {
       filename = out.toQString();
     }
-
     if (mode != "check" && mode != "delete")
     {
       input.store(filename, pp.getExperiment());
+      std::cout << std::endl << "The job was saved in the file " << filename.toAscii().constData() << " for use in status checking and retrieving results." << std::endl;
     }
 
     return TOPPBase::EXECUTION_OK;

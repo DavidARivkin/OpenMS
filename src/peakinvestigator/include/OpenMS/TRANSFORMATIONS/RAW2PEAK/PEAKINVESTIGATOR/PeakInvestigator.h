@@ -167,6 +167,9 @@ public:
     /// Get the jobID, which is set after a call to initializeJob_().
     QString getJobID() { return job_; }
 
+    /// Set the jobID.
+    void setJobID(const QString jobID) { job_ = jobID; }
+
     /// Get the PREP % complete, which is set after a call to initializeJob_().
     double PrepPercentComplete() { return prep_percent_complete_; }
 
