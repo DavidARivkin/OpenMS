@@ -205,9 +205,9 @@ namespace OpenMS
       sftp.setExpectedServerHash(VI_SSH_HASH);
 
       // Generate local and remote filenames of tar'd scans
-      sftp_file_ = zipfilename = results_file_;
+      sftp_file_ = zipfilename = QFileInfo(results_file_).fileName();
       localFilename = QDir::tempPath() + "/" + zipfilename;
-      remoteFilename = sftp_dir_ + "/" + account_number_ + "/" + zipfilename;
+      remoteFilename = results_file_;
 
       if (!sftp.downloadFile(remoteFilename, localFilename))
       {
@@ -399,12 +399,12 @@ namespace OpenMS
             log_file_ = action.getLogFilename();
             actual_cost_ = action.getActualCost();
             date_updated_ = action.getDate();
-            if( action.getNumberOfInputScans() != action.getNumberOfCompleteScans()) {
-                LOG_ERROR << "The number of input scans does not match the number of scans completed!";
-                retval = false;
-            } else {
+//            if( action.getNumberOfInputScans() != action.getNumberOfCompleteScans()) {
+//                LOG_ERROR << "The number of input scans does not match the number of scans completed!";
+//                retval = false;
+//            } else {
                 retval = true;
-            }
+ //           }
         }
         return retval;
     } else {
@@ -420,6 +420,7 @@ namespace OpenMS
                         job_);
 
     bool ok;
+    QString toSaas = action.buildQuery();
     QString contents = Post_(action.buildQuery(), ok);
     action.processResponse(contents);
 //    LOG_INFO << contents.toAscii().constData() << endl;
